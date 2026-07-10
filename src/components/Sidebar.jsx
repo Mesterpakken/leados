@@ -20,9 +20,7 @@ export default function Sidebar({ activeView, onNavigate }) {
   return (
     <aside className="app-sidebar">
       <div className="sidebar-brand">
-        <div className="brand-logo-frame">
-          <img src="/logo.png" alt="LeadOS" className="brand-logo" />
-        </div>
+        <img src="/logo.png" alt="LeadOS" className="brand-logo" />
         <p className="brand-tagline">Styrker ledere. Løfter sælgere.</p>
       </div>
 
@@ -48,7 +46,9 @@ export default function Sidebar({ activeView, onNavigate }) {
 
       <div className="sidebar-footer">
         <span className="sidebar-footer__credit">Et system af Nitzsch &amp; Co.</span>
-        <span className="sidebar-footer__tagline">Lederens eksterne hukommelse</span>
+        <span className="sidebar-footer__description">
+          Et simpelt styresystem for salgsledere. Led bedre. Hver dag.
+        </span>
       </div>
     </aside>
   );
