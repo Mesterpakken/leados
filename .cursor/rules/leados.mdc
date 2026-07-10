@@ -1,0 +1,36 @@
+---
+description: LeadOS product DNA, build order, and editorial design — read before any code
+alwaysApply: true
+---
+
+# LeadOS — mandatory session start
+
+Before writing code, read `LEADOS_CONTEXT.md` and `LEADOS_DNA.md` in the project root.
+
+## Guiding principle: NUL TASTNING
+
+Leaders must not type to load data. Prefer voice, recording, seller self-input, and AI extraction. The only intentional typing is leader approval edits (e.g. Fokusark before send).
+
+## Build order
+
+1. **First** — memory + preparation: Cockpit, dossier/Forløbet, løfter, 1:1-brief, kalender, motivation, leadership time.
+2. **Weekend must-have** — resultat-board + `/board` cast view.
+3. **After demo** — voice notes, real recording motor, onboarding, etc.
+
+Do not build auth, database, backend, CRM sync, or billing in the prototype.
+
+## Editorial design (app-wide — not per-screen)
+
+- Reuse `src/components/ui.jsx` primitives (`SectionHeader`, `BodyText`, `Hairline`, `Button`, `Field`, `LeadOSSuggestionTag`) — never invent one-off patterns.
+- Use `@theme` tokens from `src/index.css` (`paper`, `ink`, `border`, `muted`) — no hardcoded hex in views.
+- Fraunces headings, warm `#F7F5F0` paper, hairline dividers, flat cards, no shadows, no gamification, no Canva-style layouts.
+- Section rhythm: `.section-stack` + `Hairline` (48px). Page widths: `max-w-[840px]` or `max-w-[720px]`.
+- Danish UI copy. English code/comments/commits.
+
+## Working rules
+
+- Give **rules that apply everywhere**, not fixes for a single screen.
+- **Browser is source of truth** — verify visually (screenshot) after changes; do not trust "done" without seeing it.
+- Build first, see it, tweak. Restart dev server when needed.
+- Mock data lives in `src/data.js`. Meeting flow is simulated (no real audio/backend).
+- Separate repo — never touch Mesterpakken.
