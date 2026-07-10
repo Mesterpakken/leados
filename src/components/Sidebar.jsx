@@ -20,8 +20,10 @@ export default function Sidebar({ activeView, onNavigate }) {
   return (
     <aside className="app-sidebar">
       <div className="sidebar-brand">
-        <div className="brand-mark">LeadOS</div>
-        <div className="brand-tag">demo</div>
+        <div className="brand-logo-frame">
+          <img src="/logo.png" alt="LeadOS" className="brand-logo" />
+        </div>
+        <p className="brand-tagline">Styrker ledere. Løfter sælgere.</p>
       </div>
 
       <nav className="sidebar-nav" aria-label="LeadOS navigation">
@@ -45,9 +47,8 @@ export default function Sidebar({ activeView, onNavigate }) {
       </nav>
 
       <div className="sidebar-footer">
-        ET NITSCH & COMPANY-SYSTEM
-        <br />
-        LEDERENS EKSTERNE HUKOMMELSE
+        <span className="sidebar-footer__credit">Et system af Nitzsch &amp; Co.</span>
+        <span className="sidebar-footer__tagline">Lederens eksterne hukommelse</span>
       </div>
     </aside>
   );
