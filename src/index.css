@@ -26,6 +26,9 @@ table b{font-weight:600}
 .sidebar,.sidebar nav button,.workspace b,.sidebar-bottom b{font-weight:400}
 .workspace b,.sidebar-bottom b{font-weight:600}
 .brand strong{font-weight:500}
+.brand-copy{display:flex;flex-direction:column;gap:3px;margin-left:2px;max-width:210px}
+.brand-tagline{margin:0;font-size:11px;line-height:1.35;color:#d4ddd6;letter-spacing:.01em}
+.brand-byline{margin:0;font-size:9px;line-height:1.3;color:#8f9f95;letter-spacing:.02em}
 .eyebrow,.kicker{font-weight:700}
 .primary{font-weight:700}
 .metric>strong,.task strong,.timeline b,.signal-stack strong{font-weight:500}

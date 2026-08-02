@@ -271,7 +271,10 @@ export default function App() {
             alt="LeadOS"
             className="brand-logo"
           />
-          <small>Commercial operating system</small>
+          <div className="brand-copy">
+            <p className="brand-tagline">Styrker ledere. Løfter sælgere.</p>
+            <p className="brand-byline">by Nitzsch &amp; Co.</p>
+          </div>
         </div>
 
         <div className="demo-role" aria-label="Demovisning">
