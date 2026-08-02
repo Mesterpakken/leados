@@ -29,7 +29,7 @@ export default function AiDrawer({ open, onClose, onSendToMichael, onOpenDecisio
               Sikkerhedsniveau: <b>{aiAssistantDemo.confidence}</b>
             </p>
             <p className="muted" style={{ fontSize: 10, margin: 0 }}>
-              Bygger på tidligere beslutninger:
+              Bygger på tidligere afklaringer:
             </p>
             <ul className="source-list">
               {aiAssistantDemo.basedOn.map((s) => (
@@ -51,7 +51,7 @@ export default function AiDrawer({ open, onClose, onSendToMichael, onOpenDecisio
         </div>
         <footer>
           <button type="button" className="primary" onClick={onSendToMichael}>
-            Send til beslutningsejer
+            Send til afklaring
           </button>
           <button type="button" className="secondary" onClick={onClose}>
             Behold som forslag

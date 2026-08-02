@@ -13,7 +13,7 @@ export const navItems = [
   { id: 'sales', label: 'Salg', group: 'primary' },
   { id: 'team', label: 'Medarbejdere', group: 'primary' },
   { id: 'meetings', label: 'Samtaler', group: 'primary' },
-  { id: 'decisions', label: 'Beslutninger', group: 'primary' },
+  { id: 'decisions', label: 'Afklaringer', group: 'primary' },
   { id: 'calendar', label: 'Ledelsesrytme', group: 'primary' },
   { id: 'compensation', label: 'Løn & provision', group: 'primary' },
   { id: 'seller', label: 'Mit sælgercockpit', group: 'view' },

@@ -17,19 +17,25 @@ import Provision from './views/Provision';
 import SaelgerCockpit from './views/SaelgerCockpit';
 import TvTavle from './views/TvTavle';
 
-const PRIMARY_NAV = [
+const LEADER_NAV = [
   { id: 'overview', label: 'Overblik', icon: '⌁' },
   { id: 'sales', label: 'Salg', icon: '↗' },
   { id: 'team', label: 'Medarbejdere', icon: '◎' },
   { id: 'meetings', label: 'Samtaler', icon: '◫' },
-  { id: 'decisions', label: 'Beslutninger', icon: '◇' },
+  { id: 'decisions', label: 'Afklaringer', icon: '⟲' },
   { id: 'calendar', label: 'Ledelsesrytme', icon: '□' },
   { id: 'compensation', label: 'Løn & provision', icon: '≈' },
 ];
 
-const VIEW_NAV = [
-  { id: 'seller', label: 'Mit sælgercockpit', icon: '◉' },
+const LEADER_VIEW_NAV = [
+  { id: 'knowledge-bank', label: 'Vidensbank', icon: '◉' },
   { id: 'tv', label: 'TV-tavle', icon: '▣' },
+];
+
+const SELLER_NAV = [
+  { id: 'seller-cockpit', label: 'Mit cockpit', icon: '⌁' },
+  { id: 'seller-sales', label: 'Mine salg', icon: '↗' },
+  { id: 'seller-ask', label: 'Spørg LeadOS', icon: '◉' },
 ];
 
 const MEETING_FLOW = ['mote-live', 'mote-summary', 'fokusark'];
@@ -44,14 +50,20 @@ const TITLES = {
   'mote-live': 'Møde i gang',
   'mote-summary': 'Samtaleopsummering',
   fokusark: 'Fokusark',
-  decisions: 'Beslutninger',
+  decisions: 'Afklaringer',
   calendar: 'Ledelsesrytme',
   compensation: 'Løn og provision',
-  seller: 'Mit cockpit',
+  'knowledge-bank': 'Vidensbank',
+  'seller-cockpit': 'Mit cockpit',
+  'seller-sales': 'Mine salg',
+  'seller-ask': 'Spørg LeadOS',
   tv: 'Live salgstavle',
 };
 
+const SELLER_SECTIONS = new Set(['seller-cockpit', 'seller-sales', 'seller-ask']);
+
 export default function App() {
+  const [demoRole, setDemoRole] = useState('leader');
   const [section, setSection] = useState('overview');
   const [selectedEmployeeId, setSelectedEmployeeId] = useState('camilla-holm');
   const [profileOrigin, setProfileOrigin] = useState('team');
@@ -64,11 +76,22 @@ export default function App() {
   const isMeetingFlow = MEETING_FLOW.includes(section);
   const isTv = section === 'tv';
   const hideChrome = isMeetingFlow || isTv;
+  const isSellerRole = demoRole === 'seller';
 
   const go = (id) => {
     setSection(id);
     if (id !== 'profil' && id !== 'mote-brief' && !MEETING_FLOW.includes(id)) {
       setDecisionFocusId(null);
+    }
+  };
+
+  const switchRole = (role) => {
+    setDemoRole(role);
+    setAiOpen(false);
+    if (role === 'seller') {
+      setSection('seller-cockpit');
+    } else {
+      setSection('overview');
     }
   };
 
@@ -103,11 +126,24 @@ export default function App() {
     decisions: 'decisions',
     calendar: 'calendar',
     compensation: 'compensation',
-    seller: 'seller',
+    'knowledge-bank': 'knowledge-bank',
+    'seller-cockpit': 'seller-cockpit',
+    'seller-sales': 'seller-sales',
+    'seller-ask': 'seller-ask',
     tv: 'tv',
   }[section];
 
   const renderMain = () => {
+    if (SELLER_SECTIONS.has(section) || section === 'knowledge-bank') {
+      return (
+        <SaelgerCockpit
+          notify={notify}
+          section={section}
+          role={section === 'knowledge-bank' ? 'leader' : 'seller'}
+        />
+      );
+    }
+
     switch (section) {
       case 'overview':
         return (
@@ -175,17 +211,14 @@ export default function App() {
           <Beslutninger
             notify={notify}
             focusId={decisionFocusId}
-            onAskAi={() => setAiOpen(true)}
           />
         );
       case 'calendar':
         return <Ledelsesrytme onNavigateToBrief={(id) => openBrief(id, 'calendar')} />;
       case 'compensation':
         return <Provision notify={notify} />;
-      case 'seller':
-        return <SaelgerCockpit />;
       case 'tv':
-        return <TvTavle onExit={() => go('sales')} />;
+        return <TvTavle onExit={() => go(isSellerRole ? 'seller-sales' : 'sales')} />;
       default:
         return <Overview onOpenProfile={openProfile} onNavigate={go} onOpenBrief={openBrief} />;
     }
@@ -219,51 +252,94 @@ export default function App() {
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand">
-          <span className="brand-mark">L</span>
-          <div>
-            <strong>Lead OS</strong>
-            <small>Commercial operating system</small>
+          <img
+            src="/leados-lockup-reversed.svg"
+            alt="LeadOS"
+            className="brand-logo"
+          />
+          <small>Commercial operating system</small>
+        </div>
+
+        <div className="demo-role" aria-label="Demovisning">
+          <span className="demo-role-label">Demovisning</span>
+          <div className="demo-role-toggle" role="group" aria-label="Skift rolle">
+            <button
+              type="button"
+              className={demoRole === 'leader' ? 'active' : ''}
+              onClick={() => switchRole('leader')}
+            >
+              Leder
+            </button>
+            <button
+              type="button"
+              className={demoRole === 'seller' ? 'active' : ''}
+              onClick={() => switchRole('seller')}
+            >
+              Sælger
+            </button>
           </div>
         </div>
+
         <div className="workspace">
-          <span>NT</span>
+          <span>{isSellerRole ? 'CH' : 'NT'}</span>
           <div>
-            <b>Nordic Tools</b>
-            <small>Demo workspace</small>
+            <b>{isSellerRole ? 'Christian' : 'Nordic Tools'}</b>
+            <small>{isSellerRole ? 'Sælger · demo' : 'Demo workspace'}</small>
           </div>
           <i>⌄</i>
         </div>
+
         <nav>
-          <p>ARBEJDSRUM</p>
-          {PRIMARY_NAV.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className={activeNav === item.id ? 'active' : ''}
-              onClick={() => go(item.id)}
-            >
-              <span>{item.icon}</span>
-              {item.label}
-            </button>
-          ))}
-          <p>VISNING</p>
-          {VIEW_NAV.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className={activeNav === item.id ? 'active' : ''}
-              onClick={() => go(item.id)}
-            >
-              <span>{item.icon}</span>
-              {item.label}
-            </button>
-          ))}
+          {isSellerRole ? (
+            <>
+              <p>SÆLGER</p>
+              {SELLER_NAV.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={activeNav === item.id ? 'active' : ''}
+                  onClick={() => go(item.id)}
+                >
+                  <span>{item.icon}</span>
+                  {item.label}
+                </button>
+              ))}
+            </>
+          ) : (
+            <>
+              <p>ARBEJDSRUM</p>
+              {LEADER_NAV.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={activeNav === item.id ? 'active' : ''}
+                  onClick={() => go(item.id)}
+                >
+                  <span>{item.icon}</span>
+                  {item.label}
+                </button>
+              ))}
+              <p>VISNING</p>
+              {LEADER_VIEW_NAV.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={activeNav === item.id ? 'active' : ''}
+                  onClick={() => go(item.id)}
+                >
+                  <span>{item.icon}</span>
+                  {item.label}
+                </button>
+              ))}
+            </>
+          )}
         </nav>
+
         <div className="sidebar-bottom">
-          <div className="avatar">MN</div>
+          <div className="avatar">{isSellerRole ? 'CH' : 'MN'}</div>
           <div>
-            <b>Mathias Nitzsch</b>
-            <small>Rådgiver · administrator</small>
+            <b>{isSellerRole ? 'Christian' : 'Mathias Nitzsch'}</b>
+            <small>{isSellerRole ? 'Sælger · Nordic Tools' : 'Rådgiver · administrator'}</small>
           </div>
           <button type="button" aria-label="Mere">•••</button>
         </div>
@@ -273,25 +349,33 @@ export default function App() {
         {!hideChrome && (
           <header>
             <div>
-              <p className="eyebrow">SØNDAG · 2. AUGUST</p>
+              <p className="eyebrow">
+                {isSellerRole ? 'SÆLGER · DEMO' : 'SØNDAG · 2. AUGUST'}
+              </p>
               <h1>{TITLES[section] || 'Lead OS'}</h1>
             </div>
             <div className="header-actions">
-              <select value={range} onChange={(e) => setRange(e.target.value)} aria-label="Periode">
-                <option>Denne uge</option>
-                <option>Denne måned</option>
-                <option>Dette kvartal</option>
-              </select>
-              <button type="button" className="secondary" onClick={() => setAiOpen(true)}>
-                Spørg AI
-              </button>
-              <button
-                type="button"
-                className="primary"
-                onClick={() => notify('Ny aktivitet er klar til registrering')}
-              >
-                + Registrér aktivitet
-              </button>
+              {!isSellerRole && (
+                <select value={range} onChange={(e) => setRange(e.target.value)} aria-label="Periode">
+                  <option>Denne uge</option>
+                  <option>Denne måned</option>
+                  <option>Dette kvartal</option>
+                </select>
+              )}
+              {!isSellerRole && (
+                <button type="button" className="secondary" onClick={() => setAiOpen(true)}>
+                  Spørg AI
+                </button>
+              )}
+              {!isSellerRole && (
+                <button
+                  type="button"
+                  className="primary"
+                  onClick={() => notify('Ny aktivitet er klar til registrering')}
+                >
+                  + Registrér aktivitet
+                </button>
+              )}
             </div>
           </header>
         )}
@@ -299,12 +383,14 @@ export default function App() {
       </main>
 
       <Toast message={toast} />
-      <AiDrawer
-        open={aiOpen}
-        onClose={() => setAiOpen(false)}
-        onSendToMichael={() => openDecisions('dec-demo')}
-        onOpenDecision={openDecisions}
-      />
+      {!isSellerRole && (
+        <AiDrawer
+          open={aiOpen}
+          onClose={() => setAiOpen(false)}
+          onSendToMichael={() => openDecisions('dec-demo')}
+          onOpenDecision={openDecisions}
+        />
+      )}
     </div>
   );
 }

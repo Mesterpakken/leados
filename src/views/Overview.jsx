@@ -4,6 +4,7 @@ import {
   commercialSales,
   leadershipSignals,
 } from '../data/commercial';
+import { leaderKnowledgeInsights } from '../data/knowledge';
 
 function currentFocusKey() {
   return Object.entries(compassSignals).sort((a, b) => b[1].score - a[1].score)[0][0];
@@ -204,6 +205,77 @@ export default function Overview({ onOpenProfile, onNavigate, onOpenBrief }) {
           </button>
         </article>
       </div>
+
+      <article className="card" style={{ marginTop: 16 }}>
+        <div className="card-head">
+          <div>
+            <span className="kicker">VIDEN · LEDERINDSIGT</span>
+            <h3>Hvor sælgere mangler sikre svar</h3>
+          </div>
+          <button type="button" className="text-button" onClick={() => onNavigate('knowledge-bank')}>
+            Åbn vidensbank ›
+          </button>
+        </div>
+
+        <div className="kb-leader-signal">
+          <p>{leaderKnowledgeInsights.trainingSuggestion.signal}</p>
+          <small>Foreslået handling: {leaderKnowledgeInsights.trainingSuggestion.action}</small>
+        </div>
+
+        <div className="decision-panels" style={{ marginBottom: 0 }}>
+          <div>
+            <span className="kicker">HYPPIGSTE SPØRGSMÅL</span>
+            {leaderKnowledgeInsights.topQuestions.map((q) => (
+              <div className="list-row" key={q.question}>
+                <div>
+                  <b>{q.question}</b>
+                  <p>
+                    {q.count} gange · seneste {q.days} dage
+                  </p>
+                </div>
+                <span className="status-pill awaiting">{q.count}×</span>
+              </div>
+            ))}
+            <div className="list-row">
+              <div>
+                <b>Ubesvarede spørgsmål</b>
+                <p>Kræver svar før sælgere må love noget</p>
+              </div>
+              <span className="status-pill awaiting">{leaderKnowledgeInsights.unanswered}</span>
+            </div>
+          </div>
+          <div>
+            <span className="kicker">HULLER · INDVENDINGER · MICHAEL</span>
+            {leaderKnowledgeInsights.productGaps.map((g) => (
+              <div className="list-row" key={g.product}>
+                <div>
+                  <b>{g.product}</b>
+                  <p>Flest videnshuller</p>
+                </div>
+                <span className="muted">{g.gaps}</span>
+              </div>
+            ))}
+            {leaderKnowledgeInsights.objections.map((o) => (
+              <div className="list-row" key={o.text}>
+                <div>
+                  <b>{o.text}</b>
+                  <p>Gentagen kundeindvending</p>
+                </div>
+                <span className="muted">{o.count}×</span>
+              </div>
+            ))}
+            {leaderKnowledgeInsights.stillNeedsMichael.map((item) => (
+              <div className="list-row" key={item}>
+                <div>
+                  <b>{item}</b>
+                  <p>Fortsætter med at kræve Michael</p>
+                </div>
+                <span className="risk Høj">Høj</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </article>
     </div>
   );
 }

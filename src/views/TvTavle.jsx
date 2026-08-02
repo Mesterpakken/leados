@@ -8,7 +8,7 @@ export default function TvTavle({ onExit }) {
     <div className="tv-board">
       <div className="tv-head">
         <div>
-          <span className="brand-mark">L</span>
+          <img src="/leados-lockup-reversed.svg" alt="LeadOS" className="brand-logo tv-brand-logo" />
           <b>NORDIC TOOLS · LIVE</b>
         </div>
         <div className="tv-clock">SØNDAG · 14:42</div>
