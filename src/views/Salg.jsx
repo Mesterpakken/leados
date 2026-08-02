@@ -53,8 +53,6 @@ export default function Salg({ notify, onOpenTv }) {
   const orders = useSalesOrders();
   const [activeId, setActiveId] = useState(null);
   const [leaderNote, setLeaderNote] = useState('');
-  const [approveSpecial, setApproveSpecial] = useState(true);
-  const [approveCommission, setApproveCommission] = useState(true);
 
   const metrics = metricSets[view];
   const insight = insights[view];
@@ -72,17 +70,13 @@ export default function Salg({ notify, onOpenTv }) {
   const active = orders.find((o) => o.id === activeId) || null;
 
   const openOrder = (id) => {
-    const o = orders.find((x) => x.id === id);
     setActiveId(id);
     setLeaderNote('');
-    setApproveSpecial(true);
-    setApproveCommission(true);
-    if (o?.flags?.needsMichael) {
-      /* keep defaults */
-    }
   };
 
   const companyName = (o) => (typeof o.customer === 'string' ? o.customer : o.customer?.company) || '—';
+  const salesTypeOf = (o) =>
+    (typeof o.customer === 'object' && o.customer?.salesType) || 'Gensalg';
 
   return (
     <div className="content">
@@ -132,8 +126,7 @@ export default function Salg({ notify, onOpenTv }) {
               <div>
                 <b>{o.id}</b>
                 <p>
-                  {o.seller} · {companyName(o)}
-                  {o.flags?.needsMichael ? ' · kræver stillingtagen' : ''}
+                  {o.seller} · {companyName(o)} · {salesTypeOf(o)}
                 </p>
               </div>
               <div className="approval-row-meta">
@@ -152,58 +145,87 @@ export default function Salg({ notify, onOpenTv }) {
               <div>
                 <b>{companyName(active)}</b>
                 <p>
-                  {active.seller} · {money(active.amount)}
+                  {active.seller} · {salesTypeOf(active)} · {money(active.amount)}
                 </p>
                 {active.customer?.cvr && <p>CVR {active.customer.cvr}</p>}
                 {active.customer?.email && (
                   <p>
-                    {active.customer.contact} · {active.customer.email}
+                    {active.customer.contact} · {active.customer.phone} · {active.customer.email}
+                  </p>
+                )}
+                {(active.customer?.billingAddress || active.customer?.deliveryAddress) && (
+                  <p>
+                    {[
+                      active.customer.deliveryAddress || active.customer.billingAddress,
+                      active.customer.deliveryZip || active.customer.zip,
+                      active.customer.deliveryCity || active.customer.city,
+                    ]
+                      .filter(Boolean)
+                      .join(', ')}
                   </p>
                 )}
               </div>
               <div>
-                {active.special && (
+                <p>
+                  <b>Levering:</b>{' '}
+                  {active.delivery?.desiredDate
+                    ? `Særlig dato ${active.delivery.desiredDate}`
+                    : 'Hurtigst muligt'}
+                </p>
+                {active.delivery?.driverNote && (
                   <p>
-                    <b>Afvigelse:</b> {active.special}
+                    <b>Til lager/chauffør:</b> {active.delivery.driverNote}
                   </p>
                 )}
-                {active.delivery?.specialAgreement && <p>{active.delivery.specialAgreement}</p>}
-                {active.lines?.length > 0 && !active.legacy && (
-                  <ul className="approval-lines">
-                    {active.lines.map((l) => (
-                      <li key={l.id}>
-                        {l.product} · {l.qty} × {money(Number(l.unitPrice) || 0)}
-                      </li>
-                    ))}
-                  </ul>
+                {active.delivery?.internalNotes && (
+                  <p>
+                    <b>Internt:</b> {active.delivery.internalNotes}
+                  </p>
                 )}
               </div>
             </div>
 
-            {(active.flags?.specialPrice || active.flags?.customCommission) && (
-              <div className="approval-toggles">
-                {active.flags.specialPrice && (
-                  <label className="reg-check">
-                    <input
-                      type="checkbox"
-                      checked={approveSpecial}
-                      onChange={(e) => setApproveSpecial(e.target.checked)}
-                    />
-                    Godkend specialpris / særlig aftale
-                  </label>
-                )}
-                {active.flags.customCommission && (
-                  <label className="reg-check">
-                    <input
-                      type="checkbox"
-                      checked={approveCommission}
-                      onChange={(e) => setApproveCommission(e.target.checked)}
-                    />
-                    Godkend afvigende provisionssats
-                  </label>
-                )}
+            {active.lines?.length > 0 && (
+              <table style={{ marginTop: 12 }}>
+                <thead>
+                  <tr>
+                    <th>Produkt</th>
+                    <th>Antal</th>
+                    <th>Samlet pris</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {active.lines.map((l) => (
+                    <tr key={l.id}>
+                      <td>
+                        <b>{l.product}</b>
+                        {l.sku ? (
+                          <small style={{ display: 'block', color: 'var(--muted)' }}>{l.sku}</small>
+                        ) : null}
+                      </td>
+                      <td>{l.qty}</td>
+                      <td>{money(Number(l.lineTotal) || 0)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+
+            {active.bonus?.product && (
+              <div className="reg-bonus-note" style={{ marginTop: 12 }}>
+                <span className="kicker">BONUSVARE / GAVE</span>
+                <p>
+                  {active.bonus.product} · {active.bonus.qty} stk.
+                  {active.bonus.internalValue
+                    ? ` · intern værdi ${money(Number(active.bonus.internalValue) || 0)}`
+                    : ''}
+                </p>
               </div>
             )}
+
+            <p style={{ marginTop: 12, fontSize: 13 }}>
+              <b>Samlet ordrebeløb:</b> {money(active.amount)}
+            </p>
 
             <label style={{ display: 'grid', gap: 6, marginTop: 12 }}>
               Kort besked til sælgeren
@@ -220,11 +242,7 @@ export default function Salg({ notify, onOpenTv }) {
                 type="button"
                 className="primary"
                 onClick={() => {
-                  approveSalesOrder(active.id, {
-                    message: leaderNote,
-                    approveSpecial,
-                    approveCommission,
-                  });
+                  approveSalesOrder(active.id, { message: leaderNote });
                   notify(`${active.id} godkendt — klar til lager`);
                   setActiveId(null);
                 }}

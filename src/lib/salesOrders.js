@@ -1,7 +1,8 @@
 import { commercialSales, sellerOrders as seedSellerOrders } from '../data/commercial';
 
-const STORAGE_KEY = 'leados.salesOrders.v1';
-const SEQ_KEY = 'leados.salesOrderSeq.v1';
+const STORAGE_KEY = 'leados.salesOrders.v2';
+const SEQ_KEY = 'leados.salesOrderSeq.v2';
+const OLD_KEYS = ['leados.salesOrders.v1', 'leados.salesOrderSeq.v1'];
 
 export const ORDER_STATUSES = [
   'Kladde',
@@ -39,78 +40,126 @@ function formatDate(d = new Date()) {
 }
 
 function seedFromLegacy() {
-  return seedSellerOrders.map((o) => ({
-    id: o.id,
-    seller: o.seller,
-    status: o.status === 'Registreret' ? PENDING_APPROVAL : o.status === 'Godkendt' ? 'Klar til lager' : o.status,
-    registeredAt: o.registeredAt,
-    submittedAt: Date.now() - Math.random() * 1e8,
-    amount: o.amount,
-    special: o.special,
-    countsForCommission: o.status === 'Sendt' && o.amount > 0,
-    reason: o.reason,
-    leaderMessage: null,
-    specialApproved: null,
-    commissionApproved: null,
-    customer: {
-      company: o.customer,
-      cvr: '',
-      contact: '',
-      phone: '',
-      email: '',
-      billingAddress: '',
-      zip: '',
-      city: '',
-      sameDelivery: true,
-      deliveryAddress: '',
-      deliveryZip: '',
-      deliveryCity: '',
-      customerType: 'Eksisterende kunde',
-      salesType: 'Gensalg',
-    },
-    lines: o.amount > 0
-      ? [
-          {
-            id: 'line-1',
-            product: 'Ordre (legacy demo)',
-            sku: '',
-            qty: 1,
-            unitPrice: o.amount,
-            discountPct: 0,
-            lineTotal: o.amount,
-          },
-        ]
-      : [],
-    bonus: null,
-    delivery: {
-      desiredDate: '',
-      note: '',
-      customerRef: '',
-      internalNotes: '',
-      specialPrice: o.special || '',
-      specialAgreement: '',
-      customCommission: o.special?.includes('%') ? o.special : '',
-    },
-    totals: {
-      subtotal: Math.max(0, o.amount),
-      discountTotal: 0,
-      orderTotal: Math.max(0, o.amount),
-    },
-    flags: {
-      needsMichael: Boolean(o.special),
-      specialPrice: Boolean(o.special),
-      customCommission: Boolean(o.special?.includes('%')),
-    },
-    legacy: true,
-  }));
+  return seedSellerOrders.map((o) => {
+    const orderTotal = Math.max(0, o.amount);
+    return {
+      id: o.id,
+      seller: o.seller,
+      status:
+        o.status === 'Registreret'
+          ? PENDING_APPROVAL
+          : o.status === 'Godkendt'
+            ? 'Klar til lager'
+            : o.status,
+      registeredAt: o.registeredAt,
+      submittedAt: Date.now() - Math.random() * 1e8,
+      amount: o.amount,
+      countsForCommission: o.status === 'Sendt' && o.amount > 0,
+      reason: o.reason,
+      leaderMessage: null,
+      customer: {
+        company: o.customer,
+        cvr: '',
+        contact: '',
+        phone: '',
+        email: '',
+        billingAddress: '',
+        zip: '',
+        city: '',
+        sameDelivery: true,
+        deliveryAddress: '',
+        deliveryZip: '',
+        deliveryCity: '',
+        salesType: 'Gensalg',
+      },
+      lines:
+        o.amount > 0
+          ? [
+              {
+                id: 'line-1',
+                product: 'Ordre (demo)',
+                sku: '',
+                qty: 1,
+                lineTotal: orderTotal,
+              },
+            ]
+          : [],
+      bonus: null,
+      delivery: {
+        desiredDate: '',
+        driverNote: '',
+        internalNotes: '',
+      },
+      totals: { orderTotal },
+      legacy: true,
+    };
+  });
+}
+
+function normalizeOrder(o) {
+  if (!o || typeof o !== 'object') return o;
+  const customer = { ...(o.customer || {}) };
+  // Collapse legacy dual fields into one salesType
+  if (!customer.salesType) {
+    customer.salesType =
+      customer.saleType ||
+      (customer.customerType === 'Ny kunde' ? 'Nysalg' : 'Gensalg');
+  }
+  delete customer.customerType;
+  delete customer.saleType;
+
+  const lines = (o.lines || []).map((l, i) => {
+    const lineTotal =
+      Number(l.lineTotal) ||
+      Math.round(
+        (Number(l.qty) || 0) *
+          (Number(l.unitPrice) || 0) *
+          (1 - Math.min(100, Math.max(0, Number(l.discountPct) || 0)) / 100),
+      );
+    return {
+      id: l.id || `line-${i}`,
+      product: l.product || '',
+      sku: l.sku || '',
+      qty: l.qty ?? 1,
+      lineTotal,
+    };
+  });
+
+  const delivery = {
+    desiredDate: o.delivery?.desiredDate || '',
+    driverNote: o.delivery?.driverNote || o.delivery?.note || '',
+    internalNotes: o.delivery?.internalNotes || '',
+  };
+
+  const orderTotal =
+    o.totals?.orderTotal ??
+    lines.reduce((s, l) => s + (Number(l.lineTotal) || 0), 0);
+
+  return {
+    ...o,
+    customer,
+    lines,
+    delivery,
+    totals: { orderTotal },
+    amount: o.amount ?? orderTotal,
+    special: null,
+    flags: undefined,
+    specialApproved: undefined,
+    commissionApproved: undefined,
+  };
 }
 
 function loadOrders() {
   try {
+    OLD_KEYS.forEach((k) => localStorage.removeItem(k));
+  } catch {
+    /* ignore */
+  }
+  try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length) return parsed;
+      if (Array.isArray(parsed) && parsed.length) return parsed.map(normalizeOrder);
     }
   } catch {
     /* ignore */
@@ -142,6 +191,7 @@ export function resetSalesOrdersDemo() {
   try {
     localStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem(SEQ_KEY);
+    OLD_KEYS.forEach((k) => localStorage.removeItem(k));
   } catch {
     /* ignore */
   }
@@ -171,34 +221,21 @@ export function nextOrderNumber() {
   return `NT-${next}`;
 }
 
-export function lineTotal(qty, unitPrice, discountPct) {
-  const q = Number(qty) || 0;
-  const p = Number(unitPrice) || 0;
-  const d = Math.min(100, Math.max(0, Number(discountPct) || 0));
-  return Math.round(q * p * (1 - d / 100));
-}
-
+/** Sum of each line's agreed total price. */
 export function computeTotals(lines) {
-  const subtotal = lines.reduce((s, l) => s + (Number(l.qty) || 0) * (Number(l.unitPrice) || 0), 0);
-  const afterDiscount = lines.reduce((s, l) => s + lineTotal(l.qty, l.unitPrice, l.discountPct), 0);
-  return {
-    subtotal: Math.round(subtotal),
-    discountTotal: Math.round(subtotal - afterDiscount),
-    orderTotal: Math.round(afterDiscount),
-  };
-}
-
-export function orderNeedsMichael(delivery = {}) {
-  return Boolean(
-    (delivery.specialPrice && String(delivery.specialPrice).trim()) ||
-      (delivery.specialAgreement && String(delivery.specialAgreement).trim()) ||
-      (delivery.customCommission && String(delivery.customCommission).trim()),
-  );
+  const orderTotal = lines.reduce((s, l) => s + (Number(l.lineTotal) || 0), 0);
+  return { orderTotal: Math.round(orderTotal) };
 }
 
 export function submitSalesOrder(payload) {
-  const totals = computeTotals(payload.lines);
-  const needsMichael = orderNeedsMichael(payload.delivery);
+  const lines = payload.lines.map((l) => ({
+    id: l.id,
+    product: l.product,
+    sku: l.sku || '',
+    qty: Number(l.qty) || 0,
+    lineTotal: Math.round(Number(l.lineTotal) || 0),
+  }));
+  const totals = computeTotals(lines);
   const order = {
     id: nextOrderNumber(),
     seller: payload.seller || DEMO_SELLER,
@@ -206,28 +243,21 @@ export function submitSalesOrder(payload) {
     registeredAt: formatDate(),
     submittedAt: Date.now(),
     amount: totals.orderTotal,
-    special:
-      payload.delivery.specialPrice ||
-      payload.delivery.customCommission ||
-      (payload.delivery.specialAgreement ? 'Særlig aftale' : null),
     countsForCommission: false,
     reason: 'Afventer ledergodkendelse før den kan tælle.',
     leaderMessage: null,
-    specialApproved: null,
-    commissionApproved: null,
-    customer: payload.customer,
-    lines: payload.lines.map((l) => ({
-      ...l,
-      lineTotal: lineTotal(l.qty, l.unitPrice, l.discountPct),
-    })),
-    bonus: payload.bonus?.product ? payload.bonus : null,
-    delivery: payload.delivery,
-    totals,
-    flags: {
-      needsMichael,
-      specialPrice: Boolean(payload.delivery.specialPrice?.toString().trim()),
-      customCommission: Boolean(payload.delivery.customCommission?.toString().trim()),
+    customer: {
+      ...payload.customer,
+      salesType: payload.customer.salesType || 'Nysalg',
     },
+    lines,
+    bonus: payload.bonus?.product ? payload.bonus : null,
+    delivery: {
+      desiredDate: payload.delivery?.desiredDate || '',
+      driverNote: payload.delivery?.driverNote || '',
+      internalNotes: payload.delivery?.internalNotes || '',
+    },
+    totals,
     legacy: false,
   };
   orders = [order, ...orders];
@@ -244,19 +274,13 @@ export function updateSalesOrder(id, updater) {
   return orders.find((o) => o.id === id);
 }
 
-export function approveSalesOrder(id, { message = '', approveSpecial = true, approveCommission = true } = {}) {
+export function approveSalesOrder(id, { message = '' } = {}) {
   return updateSalesOrder(id, (o) => ({
     ...o,
     status: 'Klar til lager',
     leaderMessage: message || null,
-    specialApproved: o.flags?.specialPrice ? approveSpecial : null,
-    commissionApproved: o.flags?.customCommission ? approveCommission : null,
     countsForCommission: false,
     reason: 'Godkendt — klar til lager. Provision tæller først ved Sendt.',
-    special:
-      o.flags?.customCommission && !approveCommission
-        ? null
-        : o.special,
   }));
 }
 
@@ -285,7 +309,6 @@ export function markSalesOrderSent(id) {
       status: 'Sendt',
       countsForCommission: true,
       reason: null,
-      registeredAt: o.registeredAt,
       sentAt: formatDate(),
     };
   });
@@ -359,7 +382,5 @@ export function latestBoardSale() {
 
 export function statusPillClass(status) {
   if (status === 'Sendt') return '';
-  if (status === 'Skal rettes' || status === 'Returneret' || status === 'Annulleret') return 'amber';
-  if (status === PENDING_APPROVAL) return 'amber';
   return 'amber';
 }

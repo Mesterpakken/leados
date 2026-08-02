@@ -1,11 +1,5 @@
 import { useMemo, useState } from 'react';
-import {
-  DEMO_SELLER,
-  computeTotals,
-  lineTotal,
-  orderNeedsMichael,
-  submitSalesOrder,
-} from '../lib/salesOrders';
+import { DEMO_SELLER, computeTotals, submitSalesOrder } from '../lib/salesOrders';
 import { money } from '../lib/commission';
 
 const emptyLine = () => ({
@@ -13,8 +7,7 @@ const emptyLine = () => ({
   product: '',
   sku: '',
   qty: '1',
-  unitPrice: '',
-  discountPct: '0',
+  lineTotal: '',
 });
 
 function isEmail(v) {
@@ -26,6 +19,7 @@ export default function RegistrerSalg({ notify, onCancel, onSubmitted }) {
   const [submittedId, setSubmittedId] = useState(null);
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
+  const [showBonus, setShowBonus] = useState(false);
 
   const [customer, setCustomer] = useState({
     company: '',
@@ -40,7 +34,6 @@ export default function RegistrerSalg({ notify, onCancel, onSubmitted }) {
     deliveryAddress: '',
     deliveryZip: '',
     deliveryCity: '',
-    customerType: 'Eksisterende kunde',
     salesType: 'Nysalg',
   });
 
@@ -48,16 +41,11 @@ export default function RegistrerSalg({ notify, onCancel, onSubmitted }) {
   const [bonus, setBonus] = useState({ product: '', qty: '1', internalValue: '', note: '' });
   const [delivery, setDelivery] = useState({
     desiredDate: '',
-    note: '',
-    customerRef: '',
+    driverNote: '',
     internalNotes: '',
-    specialPrice: '',
-    specialAgreement: '',
-    customCommission: '',
   });
 
   const totals = useMemo(() => computeTotals(lines), [lines]);
-  const needsMichael = orderNeedsMichael(delivery);
 
   const setC = (key, value) => setCustomer((prev) => ({ ...prev, [key]: value }));
   const setD = (key, value) => setDelivery((prev) => ({ ...prev, [key]: value }));
@@ -77,6 +65,7 @@ export default function RegistrerSalg({ notify, onCancel, onSubmitted }) {
     if (!customer.billingAddress.trim()) e.billingAddress = 'Faktureringsadresse er påkrævet.';
     if (!/^\d{4}$/.test(customer.zip.trim())) e.zip = 'Postnummer skal være 4 cifre.';
     if (!customer.city.trim()) e.city = 'By er påkrævet.';
+    if (!customer.salesType) e.salesType = 'Vælg salgstype.';
 
     if (!customer.sameDelivery) {
       if (!customer.deliveryAddress.trim()) e.deliveryAddress = 'Leveringsadresse er påkrævet.';
@@ -89,11 +78,12 @@ export default function RegistrerSalg({ notify, onCancel, onSubmitted }) {
       if (!l.product.trim()) e[`line-${l.id}-product`] = `Linje ${i + 1}: produktnavn mangler.`;
       const qty = Number(l.qty);
       if (!Number.isFinite(qty) || qty <= 0) e[`line-${l.id}-qty`] = `Linje ${i + 1}: antal skal være større end 0.`;
-      const price = Number(l.unitPrice);
-      if (!Number.isFinite(price) || price < 0) e[`line-${l.id}-price`] = `Linje ${i + 1}: pris må ikke være negativ.`;
-      if (l.unitPrice === '' || l.unitPrice == null) e[`line-${l.id}-price`] = `Linje ${i + 1}: pris pr. enhed mangler.`;
-      const disc = Number(l.discountPct);
-      if (!Number.isFinite(disc) || disc < 0) e[`line-${l.id}-discount`] = `Linje ${i + 1}: rabat må ikke være negativ.`;
+      const price = Number(l.lineTotal);
+      if (l.lineTotal === '' || l.lineTotal == null) {
+        e[`line-${l.id}-price`] = `Linje ${i + 1}: samlet pris mangler.`;
+      } else if (!Number.isFinite(price) || price <= 0) {
+        e[`line-${l.id}-price`] = `Linje ${i + 1}: samlet pris skal være større end 0.`;
+      }
     });
 
     if (totals.orderTotal <= 0) e.totals = 'Ordrebeløbet skal være større end 0.';
@@ -117,6 +107,7 @@ export default function RegistrerSalg({ notify, onCancel, onSubmitted }) {
           'billingAddress',
           'zip',
           'city',
+          'salesType',
           'deliveryAddress',
           'deliveryZip',
           'deliveryCity',
@@ -124,7 +115,6 @@ export default function RegistrerSalg({ notify, onCancel, onSubmitted }) {
             `line-${l.id}-product`,
             `line-${l.id}-qty`,
             `line-${l.id}-price`,
-            `line-${l.id}-discount`,
           ]),
         ].map((k) => [k, true]),
       ),
@@ -152,13 +142,39 @@ export default function RegistrerSalg({ notify, onCancel, onSubmitted }) {
         deliveryCity: customer.sameDelivery ? customer.city : customer.deliveryCity,
       },
       lines,
-      bonus,
+      bonus: showBonus ? bonus : { product: '', qty: '1', internalValue: '', note: '' },
       delivery,
     });
     setSubmittedId(order.id);
     setStep('done');
     notify(`${order.id} sendt til godkendelse`);
     onSubmitted?.(order);
+  };
+
+  const resetForm = () => {
+    setStep('form');
+    setSubmittedId(null);
+    setShowBonus(false);
+    setCustomer({
+      company: '',
+      cvr: '',
+      contact: '',
+      phone: '',
+      email: '',
+      billingAddress: '',
+      zip: '',
+      city: '',
+      sameDelivery: true,
+      deliveryAddress: '',
+      deliveryZip: '',
+      deliveryCity: '',
+      salesType: 'Nysalg',
+    });
+    setLines([emptyLine()]);
+    setBonus({ product: '', qty: '1', internalValue: '', note: '' });
+    setDelivery({ desiredDate: '', driverNote: '', internalNotes: '' });
+    setErrors({});
+    setTouched({});
   };
 
   if (step === 'done') {
@@ -174,38 +190,7 @@ export default function RegistrerSalg({ notify, onCancel, onSubmitted }) {
             <button type="button" className="primary" onClick={() => onCancel?.('seller-sales')}>
               Gå til Mine salg
             </button>
-            <button
-              type="button"
-              className="secondary"
-              onClick={() => {
-                setStep('form');
-                setSubmittedId(null);
-                setCustomer((c) => ({
-                  ...c,
-                  company: '',
-                  cvr: '',
-                  contact: '',
-                  phone: '',
-                  email: '',
-                  billingAddress: '',
-                  zip: '',
-                  city: '',
-                }));
-                setLines([emptyLine()]);
-                setBonus({ product: '', qty: '1', internalValue: '', note: '' });
-                setDelivery({
-                  desiredDate: '',
-                  note: '',
-                  customerRef: '',
-                  internalNotes: '',
-                  specialPrice: '',
-                  specialAgreement: '',
-                  customCommission: '',
-                });
-                setErrors({});
-                setTouched({});
-              }}
-            >
+            <button type="button" className="secondary" onClick={resetForm}>
               Registrér endnu et salg
             </button>
           </div>
@@ -237,17 +222,22 @@ export default function RegistrerSalg({ notify, onCancel, onSubmitted }) {
               <span className="kicker">KUNDE</span>
               <b>{customer.company}</b>
               <p>
-                CVR {customer.cvr} · {customer.customerType} · {customer.salesType}
+                CVR {customer.cvr} · {customer.salesType}
               </p>
               <p>
                 {customer.contact} · {customer.phone} · {customer.email}
               </p>
+              <p>{deliveryAddr}</p>
             </div>
             <div>
               <span className="kicker">LEVERING</span>
-              <b>{deliveryAddr}</b>
-              <p>{delivery.desiredDate ? `Ønsket dato: ${delivery.desiredDate}` : 'Ingen ønsket leveringsdato'}</p>
-              {delivery.note && <p>{delivery.note}</p>}
+              <b>
+                {delivery.desiredDate
+                  ? `Særlig leveringsdato: ${delivery.desiredDate}`
+                  : 'Hurtigst muligt'}
+              </b>
+              {delivery.driverNote && <p>Til lager/chauffør: {delivery.driverNote}</p>}
+              {delivery.internalNotes && <p>Internt: {delivery.internalNotes}</p>}
             </div>
           </div>
 
@@ -255,10 +245,9 @@ export default function RegistrerSalg({ notify, onCancel, onSubmitted }) {
             <thead>
               <tr>
                 <th>Produkt</th>
+                <th>Varenr.</th>
                 <th>Antal</th>
-                <th>Pris</th>
-                <th>Rabat</th>
-                <th>Linjetotal</th>
+                <th>Samlet pris</th>
               </tr>
             </thead>
             <tbody>
@@ -266,18 +255,16 @@ export default function RegistrerSalg({ notify, onCancel, onSubmitted }) {
                 <tr key={l.id}>
                   <td>
                     <b>{l.product}</b>
-                    {l.sku ? <small style={{ display: 'block', color: 'var(--muted)' }}>{l.sku}</small> : null}
                   </td>
+                  <td>{l.sku || '—'}</td>
                   <td>{l.qty}</td>
-                  <td>{money(Number(l.unitPrice) || 0)}</td>
-                  <td>{l.discountPct || 0}%</td>
-                  <td>{money(lineTotal(l.qty, l.unitPrice, l.discountPct))}</td>
+                  <td>{money(Number(l.lineTotal) || 0)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
 
-          {bonus.product && (
+          {showBonus && bonus.product && (
             <div className="reg-bonus-note">
               <span className="kicker">BONUSVARE / GAVE</span>
               <p>
@@ -290,27 +277,10 @@ export default function RegistrerSalg({ notify, onCancel, onSubmitted }) {
           )}
 
           <div className="reg-totals">
-            <span>
-              Subtotal <b>{money(totals.subtotal)}</b>
-            </span>
-            <span>
-              Rabat <b>{money(totals.discountTotal)}</b>
-            </span>
             <span className="reg-total-strong">
-              Samlet beløb <b>{money(totals.orderTotal)}</b>
+              Samlet ordrebeløb <b>{money(totals.orderTotal)}</b>
             </span>
           </div>
-
-          {needsMichael && (
-            <div className="reg-flag">
-              <b>Kræver Michaels stillingtagen</b>
-              <p>
-                {[delivery.specialPrice && `Specialpris: ${delivery.specialPrice}`, delivery.specialAgreement, delivery.customCommission && `Provision: ${delivery.customCommission}`]
-                  .filter(Boolean)
-                  .join(' · ')}
-              </p>
-            </div>
-          )}
 
           <div className="rule-actions" style={{ marginTop: 18 }}>
             <button type="button" className="primary" onClick={send}>
@@ -333,7 +303,7 @@ export default function RegistrerSalg({ notify, onCancel, onSubmitted }) {
       <div className="people-intro">
         <div>
           <h2>Registrér salg</h2>
-          <p>Hurtigere og mere sikkert end en mail — LeadOS tjekker felterne, før ordren går til Michael.</p>
+          <p>Hurtigere end en mail — LeadOS tjekker felterne, før ordren går til Michael.</p>
         </div>
         <span className="muted">Sælger: {DEMO_SELLER}</span>
       </div>
@@ -397,7 +367,7 @@ export default function RegistrerSalg({ notify, onCancel, onSubmitted }) {
           </label>
         </div>
 
-        <div className="reg-grid-3" style={{ marginTop: 12 }}>
+        <div className="reg-grid-3">
           <label className={fieldError('billingAddress') ? 'has-error' : ''}>
             Faktureringsadresse *
             <input
@@ -469,21 +439,24 @@ export default function RegistrerSalg({ notify, onCancel, onSubmitted }) {
           </div>
         )}
 
-        <div className="reg-grid-2" style={{ marginTop: 12 }}>
-          <label>
-            Kundetype
-            <select value={customer.customerType} onChange={(e) => setC('customerType', e.target.value)}>
-              <option>Ny kunde</option>
-              <option>Eksisterende kunde</option>
-            </select>
-          </label>
-          <label>
-            Salgstype
-            <select value={customer.salesType} onChange={(e) => setC('salesType', e.target.value)}>
-              <option>Nysalg</option>
-              <option>Gensalg</option>
-            </select>
-          </label>
+        <div className="reg-sales-type">
+          <span className="reg-sales-type-label">Salgstype *</span>
+          <div className="reg-segment" role="group" aria-label="Salgstype">
+            {['Nysalg', 'Gensalg'].map((type) => (
+              <button
+                key={type}
+                type="button"
+                className={customer.salesType === type ? 'active' : ''}
+                onClick={() => {
+                  setC('salesType', type);
+                  setTouched((t) => ({ ...t, salesType: true }));
+                }}
+              >
+                {type}
+              </button>
+            ))}
+          </div>
+          {fieldError('salesType') && <em className="reg-inline-error">{fieldError('salesType')}</em>}
         </div>
       </section>
 
@@ -510,19 +483,24 @@ export default function RegistrerSalg({ notify, onCancel, onSubmitted }) {
                 </button>
               )}
             </div>
-            <div className="reg-grid-line">
+            <div className="reg-grid-line-simple">
               <label className={fieldError(`line-${l.id}-product`) ? 'has-error' : ''}>
                 Produkt / varenavn *
                 <input
                   value={l.product}
                   onChange={(e) => updateLine(l.id, 'product', e.target.value)}
                   onBlur={() => setTouched((t) => ({ ...t, [`line-${l.id}-product`]: true }))}
+                  placeholder="Fx skæreskiver"
                 />
                 {fieldError(`line-${l.id}-product`) && <em>{fieldError(`line-${l.id}-product`)}</em>}
               </label>
               <label>
                 Varenummer
-                <input value={l.sku} onChange={(e) => updateLine(l.id, 'sku', e.target.value)} placeholder="Valgfrit" />
+                <input
+                  value={l.sku}
+                  onChange={(e) => updateLine(l.id, 'sku', e.target.value)}
+                  placeholder="Valgfrit"
+                />
               </label>
               <label className={fieldError(`line-${l.id}-qty`) ? 'has-error' : ''}>
                 Antal *
@@ -535,134 +513,117 @@ export default function RegistrerSalg({ notify, onCancel, onSubmitted }) {
                 {fieldError(`line-${l.id}-qty`) && <em>{fieldError(`line-${l.id}-qty`)}</em>}
               </label>
               <label className={fieldError(`line-${l.id}-price`) ? 'has-error' : ''}>
-                Pris pr. enhed *
+                Samlet pris *
                 <input
-                  value={l.unitPrice}
-                  onChange={(e) => updateLine(l.id, 'unitPrice', e.target.value)}
+                  value={l.lineTotal}
+                  onChange={(e) => updateLine(l.id, 'lineTotal', e.target.value)}
                   onBlur={() => setTouched((t) => ({ ...t, [`line-${l.id}-price`]: true }))}
                   inputMode="decimal"
+                  placeholder="Fx 18500"
                 />
                 {fieldError(`line-${l.id}-price`) && <em>{fieldError(`line-${l.id}-price`)}</em>}
-              </label>
-              <label className={fieldError(`line-${l.id}-discount`) ? 'has-error' : ''}>
-                Rabat %
-                <input
-                  value={l.discountPct}
-                  onChange={(e) => updateLine(l.id, 'discountPct', e.target.value)}
-                  inputMode="decimal"
-                />
-              </label>
-              <label>
-                Linjetotal
-                <input value={money(lineTotal(l.qty, l.unitPrice, l.discountPct))} readOnly disabled />
               </label>
             </div>
           </div>
         ))}
 
         <div className="reg-totals">
-          <span>
-            Subtotal <b>{money(totals.subtotal)}</b>
-          </span>
-          <span>
-            Samlet rabat <b>{money(totals.discountTotal)}</b>
-          </span>
           <span className="reg-total-strong">
             Samlet ordrebeløb <b>{money(totals.orderTotal)}</b>
           </span>
         </div>
         {errors.totals && <p className="reg-error-banner">{errors.totals}</p>}
 
-        <div className="reg-bonus">
-          <span className="kicker">BONUSVARE ELLER GAVE · VALGFRIT</span>
-          <p className="muted" style={{ fontSize: 11, margin: '6px 0 10px' }}>
-            Tæller som udgangspunkt ikke med i kundens ordrebeløb.
-          </p>
-          <div className="reg-grid-line">
-            <label>
-              Bonusvare / gave
-              <input
-                value={bonus.product}
-                onChange={(e) => setBonus({ ...bonus, product: e.target.value })}
-                placeholder="Fx ekstra bitsæt"
-              />
-            </label>
-            <label>
-              Antal
-              <input value={bonus.qty} onChange={(e) => setBonus({ ...bonus, qty: e.target.value })} />
-            </label>
-            <label>
-              Intern værdi
-              <input
-                value={bonus.internalValue}
-                onChange={(e) => setBonus({ ...bonus, internalValue: e.target.value })}
-                placeholder="Valgfrit"
-              />
-            </label>
-            <label>
-              Bemærkning
-              <input value={bonus.note} onChange={(e) => setBonus({ ...bonus, note: e.target.value })} />
-            </label>
+        {!showBonus ? (
+          <button
+            type="button"
+            className="text-button reg-bonus-toggle"
+            onClick={() => setShowBonus(true)}
+          >
+            + Tilføj bonusvare eller gave
+          </button>
+        ) : (
+          <div className="reg-bonus">
+            <div className="reg-line-head">
+              <span className="kicker">BONUSVARE ELLER GAVE</span>
+              <button
+                type="button"
+                className="text-button"
+                onClick={() => {
+                  setShowBonus(false);
+                  setBonus({ product: '', qty: '1', internalValue: '', note: '' });
+                }}
+              >
+                Fjern
+              </button>
+            </div>
+            <p className="muted" style={{ fontSize: 11, margin: '0 0 10px' }}>
+              Intern værdi tæller ikke med i kundens ordrebeløb.
+            </p>
+            <div className="reg-grid-bonus">
+              <label>
+                Bonusvare / gave
+                <input
+                  value={bonus.product}
+                  onChange={(e) => setBonus({ ...bonus, product: e.target.value })}
+                  placeholder="Fx ekstra bitsæt"
+                />
+              </label>
+              <label>
+                Antal
+                <input value={bonus.qty} onChange={(e) => setBonus({ ...bonus, qty: e.target.value })} />
+              </label>
+              <label>
+                Intern værdi
+                <input
+                  value={bonus.internalValue}
+                  onChange={(e) => setBonus({ ...bonus, internalValue: e.target.value })}
+                  placeholder="Valgfrit"
+                />
+              </label>
+              <label>
+                Bemærkning
+                <input
+                  value={bonus.note}
+                  onChange={(e) => setBonus({ ...bonus, note: e.target.value })}
+                  placeholder="Valgfrit"
+                />
+              </label>
+            </div>
           </div>
-        </div>
+        )}
       </section>
 
       {/* Section 3 */}
       <section className="card reg-section">
-        <span className="kicker">3 · LEVERING OG AFTALER</span>
-        <div className="reg-grid-2">
+        <span className="kicker">3 · LEVERING OG BEMÆRKNINGER</span>
+        <div className="reg-grid-delivery">
           <label>
-            Ønsket leveringsdato
+            Særlig leveringsdato
             <input
               type="date"
               value={delivery.desiredDate}
               onChange={(e) => setD('desiredDate', e.target.value)}
             />
+            <span className="reg-help">Lad feltet stå tomt, hvis ordren skal sendes hurtigst muligt.</span>
           </label>
           <label>
-            Kundens reference
-            <input value={delivery.customerRef} onChange={(e) => setD('customerRef', e.target.value)} />
-          </label>
-          <label>
-            Leveringsbemærkning
-            <input value={delivery.note} onChange={(e) => setD('note', e.target.value)} />
+            Besked til lager/chauffør
+            <input
+              value={delivery.driverNote}
+              onChange={(e) => setD('driverNote', e.target.value)}
+              placeholder="Fx ring 30 minutter før levering eller stil varerne ved bagdøren"
+            />
           </label>
           <label>
             Interne bemærkninger
-            <input value={delivery.internalNotes} onChange={(e) => setD('internalNotes', e.target.value)} />
-          </label>
-          <label>
-            Specialpris eller særlig aftale
             <input
-              value={delivery.specialPrice}
-              onChange={(e) => setD('specialPrice', e.target.value)}
-              placeholder="Fx aftalt 151.000 kr."
-            />
-          </label>
-          <label>
-            Afvigende provisionssats
-            <input
-              value={delivery.customCommission}
-              onChange={(e) => setD('customCommission', e.target.value)}
-              placeholder="Fx 7,5 %"
+              value={delivery.internalNotes}
+              onChange={(e) => setD('internalNotes', e.target.value)}
+              placeholder="Valgfrit"
             />
           </label>
         </div>
-        <label style={{ marginTop: 10, display: 'grid', gap: 5 }}>
-          Beskrivelse af særlig aftale
-          <textarea
-            value={delivery.specialAgreement}
-            onChange={(e) => setD('specialAgreement', e.target.value)}
-            rows={2}
-            placeholder="Valgfrit"
-          />
-        </label>
-        {needsMichael && (
-          <div className="reg-flag" style={{ marginTop: 14 }}>
-            <b>Markeret til Michael</b>
-            <p>Specialpris, særlig aftale eller afvigende provision kræver ledergodkendelse.</p>
-          </div>
-        )}
       </section>
 
       <div className="reg-actions">
@@ -674,8 +635,8 @@ export default function RegistrerSalg({ notify, onCancel, onSubmitted }) {
         </button>
       </div>
       <p className="muted" style={{ fontSize: 10, marginTop: 12, maxWidth: 560 }}>
-        Senere kan LeadOS hente CVR, produkter og lagerstatus direkte fra økonomi- og lagersystemet. I demoen udfylder
-        du felterne manuelt.
+        Provision beregnes ud fra sendt omsætning — ikke pr. ordre. Senere kan LeadOS hente CVR og produkter fra
+        økonomisystemet.
       </p>
     </div>
   );

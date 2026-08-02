@@ -793,9 +793,9 @@ export default function SaelgerCockpit({
               <tr>
                 <th>ORDRE</th>
                 <th>KUNDE</th>
+                <th>SALGSTYPE</th>
                 <th>DATO</th>
                 <th>BELØB</th>
-                <th>SPECIAL</th>
                 <th>STATUS</th>
                 <th>PROVISION</th>
               </tr>
@@ -803,15 +803,17 @@ export default function SaelgerCockpit({
             <tbody>
               {myOrders.map((o) => {
                 const company = typeof o.customer === 'string' ? o.customer : o.customer?.company;
+                const salesType =
+                  (typeof o.customer === 'object' && o.customer?.salesType) || 'Gensalg';
                 return (
                   <tr key={o.id}>
                     <td>
                       <b>{o.id}</b>
                     </td>
                     <td>{company}</td>
+                    <td>{salesType}</td>
                     <td>{o.registeredAt}</td>
                     <td className={o.amount < 0 ? 'negative' : ''}>{money(o.amount)}</td>
-                    <td>{o.special || '—'}</td>
                     <td>
                       <span className={`pill ${statusPillClass(o.status)}`}>{o.status}</span>
                     </td>
