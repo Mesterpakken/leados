@@ -15,8 +15,14 @@ import Indsigt from './views/Indsigt';
 import Resultater from './views/Resultater';
 import AIAssistent from './views/AIAssistent';
 import Indstillinger from './views/Indstillinger';
+import Salg from './views/Salg';
+import Provision from './views/Provision';
+import Beslutninger from './views/Beslutninger';
+import SaelgerCockpit from './views/SaelgerCockpit';
+import TvTavle from './views/TvTavle';
 
 const MEETING_FLOW_VIEWS = ['mote-live', 'mote-summary', 'fokusark'];
+const FULLSCREEN_VIEWS = ['tv', ...MEETING_FLOW_VIEWS];
 
 export default function App() {
   const [view, setView] = useState('cockpit');
@@ -24,7 +30,7 @@ export default function App() {
   const [profileOrigin, setProfileOrigin] = useState('cockpit');
   const [briefOrigin, setBriefOrigin] = useState('profil');
 
-  const isMeetingFlow = MEETING_FLOW_VIEWS.includes(view);
+  const isFullscreen = FULLSCREEN_VIEWS.includes(view);
 
   const handleSidebarNavigate = (navId) => {
     setView(navId);
@@ -78,8 +84,19 @@ export default function App() {
           <Cockpit
             onNavigateToProfile={handleNavigateToProfile}
             onNavigateToMeeting={handleNavigateToMeeting}
+            onNavigate={handleSidebarNavigate}
           />
         );
+      case 'salg':
+        return <Salg onOpenTv={() => setView('tv')} />;
+      case 'provision':
+        return <Provision />;
+      case 'beslutninger':
+        return <Beslutninger />;
+      case 'saelger':
+        return <SaelgerCockpit />;
+      case 'tv':
+        return <TvTavle onExit={() => setView('salg')} />;
       case 'morgenmoede':
         return <Morgenmoede />;
       case 'medarbejdere':
@@ -143,20 +160,30 @@ export default function App() {
       case 'indstillinger':
         return <Indstillinger />;
       default:
-        return <Cockpit onNavigateToProfile={handleNavigateToProfile} onNavigateToMeeting={handleNavigateToMeeting} />;
+        return (
+          <Cockpit
+            onNavigateToProfile={handleNavigateToProfile}
+            onNavigateToMeeting={handleNavigateToMeeting}
+            onNavigate={handleSidebarNavigate}
+          />
+        );
     }
   };
 
+  if (view === 'tv') {
+    return renderView();
+  }
+
   return (
     <div className="min-h-screen bg-paper">
-      {!isMeetingFlow && (
+      {!isFullscreen && (
         <Sidebar activeView={view} onNavigate={handleSidebarNavigate} />
       )}
       <div
         className="min-h-screen flex flex-col"
-        style={{ marginLeft: isMeetingFlow ? 0 : 'var(--sidebar-width)' }}
+        style={{ marginLeft: isFullscreen ? 0 : 'var(--sidebar-width)' }}
       >
-        {!isMeetingFlow && (
+        {!isFullscreen && (
           <TopBar activeView={view} onAskAi={() => setView('ai')} />
         )}
         <main className={`app-content ${view === 'profil' || view === 'mote-brief' ? 'app-content--narrow' : ''}`}>

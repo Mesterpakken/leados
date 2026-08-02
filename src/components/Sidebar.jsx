@@ -3,6 +3,11 @@ import { navItems } from '../data';
 export default function Sidebar({ activeView, onNavigate }) {
   const viewToNav = {
     cockpit: 'cockpit',
+    salg: 'salg',
+    provision: 'provision',
+    beslutninger: 'beslutninger',
+    saelger: 'saelger',
+    tv: 'tv',
     morgenmoede: 'morgenmoede',
     medarbejdere: 'medarbejdere',
     profil: 'medarbejdere',

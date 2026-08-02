@@ -8,13 +8,18 @@ export const currentUser = {
 export const currentDate = 'Fredag · 10. juli 2026';
 
 export const navItems = [
-  { id: 'cockpit', label: 'Cockpit', icon: 'LayoutDashboard', count: '4' },
+  { id: 'cockpit', label: 'Overblik', icon: 'LayoutDashboard', count: '4' },
+  { id: 'salg', label: 'Salg', icon: 'Table2' },
+  { id: 'medarbejdere', label: 'Mennesker', icon: 'Users', count: '12' },
+  { id: 'moter', label: 'Samtaler', icon: 'MessageSquare', count: '3' },
+  { id: 'kalender', label: 'Ledelsesrytme', icon: 'Calendar', count: 'Q3' },
+  { id: 'provision', label: 'Løn & provision', icon: 'BarChart3' },
+  { id: 'beslutninger', label: 'Beslutninger', icon: 'Sparkles', count: '4' },
+  { id: 'saelger', label: 'Mit sælgercockpit', icon: 'LayoutDashboard' },
+  { id: 'tv', label: 'TV-tavle', icon: 'Table2' },
   { id: 'morgenmoede', label: 'Morgenmøde', icon: 'Sunrise' },
-  { id: 'medarbejdere', label: 'Medarbejdere', icon: 'Users', count: '12' },
-  { id: 'moter', label: 'Møder', icon: 'MessageSquare', count: '3' },
-  { id: 'kalender', label: 'Kalender', icon: 'Calendar', count: 'Q3' },
-  { id: 'indsigt', label: 'Indsigt', icon: 'BarChart3', count: '78' },
   { id: 'resultater', label: 'Resultater', icon: 'Table2' },
+  { id: 'indsigt', label: 'Indsigt', icon: 'BarChart3', count: '78' },
   { id: 'ai', label: 'AI-assistent', icon: 'Sparkles', count: 'ny' },
   { id: 'indstillinger', label: 'Indstillinger', icon: 'Settings' },
 ];
