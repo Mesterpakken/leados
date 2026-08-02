@@ -1,301 +1,165 @@
-import {
-  Button, StatusBadge, LeadOSSuggestionTag, SourceTag,
-  Icon, SectionHeading, Hairline, HelperText, BodyText, Field, ContentLabel, MonoLabel, Panel,
-} from '../components/ui';
-import Sparkline from '../components/Sparkline';
-import RampJourney from '../components/RampJourney';
 import { getEmployeeById } from '../data';
 
-const journeyTone = {
-  '1:1': '',
-  Kvartalssamtale: 'terracotta',
-  Coaching: 'caution',
-  'Coaching-notat': 'caution',
-  Anerkendelse: 'positive',
-  Løfte: 'risk',
-  'Check-in': 'blue',
-};
-
-function DossierSection({ title, subtitle, children }) {
-  return (
-    <section>
-      <SectionHeading as="h2">{title}</SectionHeading>
-      {subtitle && <HelperText className="mt-2 block">{subtitle}</HelperText>}
-      <div className="mt-5">{children}</div>
-    </section>
-  );
+function initials(name) {
+  return name
+    .split(' ')
+    .map((p) => p[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
 }
 
 export default function Medarbejderprofil({ employeeId, onBack, onPrepareMeeting }) {
-  const employee = getEmployeeById(employeeId);
+  const person = getEmployeeById(employeeId);
 
-  if (!employee) {
+  if (!person) {
     return (
-      <div className="text-center py-12">
-        <p className="text-muted">Medarbejder ikke fundet.</p>
-        <Button variant="secondary" className="mt-4" onClick={onBack}>Tilbage</Button>
+      <div className="content">
+        <p className="muted">Medarbejder ikke fundet.</p>
+        <button type="button" className="secondary" onClick={onBack}>
+          Tilbage
+        </button>
       </div>
     );
   }
 
-  const journey = employee.journey || employee.meetingHistory?.map((m) => ({
-    date: m.date,
-    type: m.type,
-    summary: m.summary,
-    fromEmployee: false,
-    status: null,
-  })) || [];
-
-  const reading = employee.reading || employee.aiSummary;
-  const signals = employee.signals || [
-    { label: 'Motivation', value: `${employee.motivation}`, source: 'KILDE: CHECK-IN' },
-    { label: 'Energi', value: `${employee.energy}/10`, source: 'KILDE: CHECK-IN' },
-    { label: 'Målopfyldelse', value: `${employee.performance}%`, source: 'KILDE: CRM' },
-  ];
+  const journey = person.journey || [];
+  const reading = person.reading || person.aiSummary;
+  const commitments = person.openCommitments || [];
+  const development = person.developmentGoals || [];
+  const how = person.howToLead || {};
 
   return (
-    <article className="page-shell max-w-[920px]">
-      <button
-        onClick={onBack}
-        className="flex items-center gap-1.5 section-label hover:text-ink mb-8 transition-colors cursor-pointer"
-      >
-        <Icon name="ArrowLeft" className="w-3.5 h-3.5" />
-        Tilbage
+    <div className="content profile-page">
+      <button type="button" className="back-button" onClick={onBack}>
+        ← Alle medarbejdere
       </button>
 
-      <header className="profile-band">
+      <section className="profile-hero">
+        <div className="profile-identity">
+          <span className="profile-avatar">{initials(person.name)}</span>
+          <div>
+            <span className="kicker">MEDARBEJDERBILLEDE · {journey.length || 18} KILDER</span>
+            <h2>{person.name}</h2>
+            <p>
+              {person.role} · {person.team}
+              {person.tenure ? ` · ${person.tenure}` : ''}
+            </p>
+          </div>
+        </div>
+        <div className="profile-actions">
+          <button type="button" className="secondary">
+            + Note
+          </button>
+          <button type="button" className="secondary">
+            + Løfte
+          </button>
+          <button type="button" className="primary" onClick={() => onPrepareMeeting(person.id)}>
+            Forbered 1:1
+          </button>
+        </div>
+      </section>
+
+      <section className="reading card">
         <div>
-          <div className="profile-name">{employee.name}</div>
-          <HelperText>
-            {employee.role}
-            {employee.tenure && <> · {employee.tenure}</>}
-            {' · '}{employee.team}
-          </HelperText>
-          {employee.leadershipHeadline && (
-            <BodyText className="mt-4 max-w-[640px]">{employee.leadershipHeadline}</BodyText>
-          )}
+          <span className="kicker">LEAD OS · LÆSNING</span>
+          <h3>Det vigtigste at forstå lige nu</h3>
+          <p>{reading}</p>
+          <small>Syntetiseret fra 1:1, check-ins, noter, løfter og salgsdata · AI-fortolkning, ikke objektivt faktum</small>
         </div>
-        <div className="flex items-start gap-2.5 flex-wrap justify-end">
-          <Button onClick={() => onPrepareMeeting(employee.id)}>Forbered 1:1</Button>
-          <Button variant="ghost" size="sm">Tilføj note</Button>
-          <Button variant="ghost" size="sm">Tilføj løfte</Button>
-        </div>
-      </header>
-
-      <Panel className="mb-5">
-        <div className="panel-title">
-          <SectionHeading as="h3">Signaler</SectionHeading>
-          <StatusBadge variant={employee.status === 'Kræver opmærksomhed' ? 'warning' : 'primary'}>
-            {employee.status}
-          </StatusBadge>
-        </div>
-        <div className={`signal-grid ${signals.length === 3 ? 'signal-grid--3' : ''}`}>
-          {signals.map((sig) => (
-            <div key={sig.label} className="signal-cell">
-              <div className="signal-number">{sig.value}</div>
-              <div className="signal-label">{sig.label}</div>
-              {sig.sub && <div className="text-risk text-sm mb-2">{sig.sub}</div>}
-              <SourceTag>{sig.source}</SourceTag>
-            </div>
-          ))}
-        </div>
-      </Panel>
-
-      <div className="section-stack">
-        <DossierSection title="Læsningen">
-          <BodyText>{reading}</BodyText>
-          <HelperText className="mt-4">Syntetiseret fra {employee.name.split(' ')[0]}s forløb</HelperText>
-        </DossierSection>
-
-        <Hairline />
-
-        <DossierSection title="Forløbet" subtitle="Kronologisk — nyeste først. Her lever aftaler, løfter og forløb.">
-          <div className="timeline">
-            {journey.map((entry, i) => (
-              <div
-                key={i}
-                className={`timeline-event ${
-                  journeyTone[entry.type] ? `timeline-event--${journeyTone[entry.type]}` : ''
-                }`}
-              >
-                <div className="timeline-date">{entry.date}</div>
-                <div className="timeline-title">
-                  {entry.type}
-                  {entry.fromEmployee && (
-                    <span className="text-terracotta font-normal"> · Fra {employee.name.split(' ')[0]}</span>
-                  )}
-                  {entry.status && (
-                    <span className={`ml-2 font-mono text-[10px] uppercase tracking-[0.08em] ${
-                      entry.status.toLowerCase().includes('forsinket') ? 'text-risk'
-                        : entry.status.toLowerCase().includes('afventer') ? 'text-caution' : 'text-muted'
-                    }`}>
-                      {entry.status}
-                    </span>
-                  )}
-                </div>
-                <div className="timeline-text">{entry.summary}</div>
+        <aside>
+          <span className="signal-tag attention">{person.attentionSignal || person.status}</span>
+          <dl>
+            {(person.signals || []).map((s) => (
+              <div key={s.label}>
+                <dt>{s.label}</dt>
+                <dd>
+                  {s.value} {s.sub ? <small>{s.sub}</small> : null}
+                </dd>
               </div>
             ))}
+          </dl>
+        </aside>
+      </section>
+
+      <div className="profile-grid">
+        <section className="card">
+          <div className="card-head">
+            <div>
+              <span className="kicker">FORLØBET</span>
+              <h3>En levende hukommelse</h3>
+            </div>
+            <span className="muted">Alle kilder</span>
           </div>
-        </DossierSection>
-
-        {employee.ramp && (
-          <>
-            <Hairline />
-            <DossierSection
-              title="Rejsen"
-              subtitle="Hvor hurtigt nåede sælgeren nøglemilepæle — sammenlignet med teamets typiske tempo."
-            >
-              <RampJourney ramp={employee.ramp} />
-            </DossierSection>
-          </>
-        )}
-
-        {(employee.targets || employee.performance) && (
-          <>
-            <Hairline />
-            <DossierSection title="Tal & mål">
-              {employee.targets ? (
-                <>
-                  <div className="flex items-start gap-10 mb-6">
-                    <Field label={employee.targets.monthlyLabel} numeric valueClassName="field-value--large">
-                      {employee.targets.monthlyValue}% af mål
-                    </Field>
-                    <Field label="6 måneder">
-                      <Sparkline data={employee.targets.sparkline} width={140} height={36} />
-                    </Field>
-                  </div>
-                  <div className="space-y-5">
-                    {employee.targets.personalGoals.map((g) => (
-                      <div key={g.goal}>
-                        <div className="flex justify-between mb-1.5">
-                          <BodyText as="span">{g.goal}</BodyText>
-                          <span className="signal-number text-[1.25rem]">{g.progress}%</span>
-                        </div>
-                        <div className="h-1 bg-border rounded-full overflow-hidden">
-                          <div className="h-full rounded-full bg-blue" style={{ width: `${g.progress}%`, background: 'var(--blue)' }} />
-                        </div>
-                        <HelperText className="mt-1">{g.target}</HelperText>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              ) : (
-                <div className="signal-number">{employee.performance}%</div>
-              )}
-            </DossierSection>
-          </>
-        )}
-
-        {employee.developmentGoals && (
-          <>
-            <Hairline />
-            <DossierSection title="Udvikling">
-              <div className="space-y-5">
-                {employee.developmentGoals.map((goal, i) => (
-                  <div key={i} className="pb-5 border-b border-border last:border-0 last:pb-0">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <BodyText>{goal.goal}</BodyText>
-                        <HelperText className="mt-1.5">Næste skridt · {goal.nextStep}</HelperText>
-                      </div>
-                      <StatusBadge variant={goal.status === 'I gang' ? 'primary' : 'default'}>
-                        {goal.status}
-                      </StatusBadge>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              {employee.employeeVisibleNote && (
-                <HelperText className="mt-5 italic">{employee.employeeVisibleNote}</HelperText>
-              )}
-            </DossierSection>
-          </>
-        )}
-
-        {employee.howToLead && (
-          <>
-            <Hairline />
-            <DossierSection title="Sådan går du til hende">
-              <BodyText className="mb-6">{employee.howToLead.workingStyle}</BodyText>
-              <div className="space-y-6">
+          <div className="journey">
+            {journey.slice(0, 8).map((item, i) => (
+              <article key={`${item.date}-${i}`}>
+                <i className={item.status?.toLowerCase().includes('forsink') || item.status?.includes('Løfte') ? 'urgent' : ''} />
+                <time>{item.date}</time>
                 <div>
-                  <ContentLabel className="text-positive block mb-2">Det giver energi</ContentLabel>
-                  <ul className="space-y-2">
-                    {employee.howToLead.energizes.map((item, i) => (
-                      <li key={i} className="pl-3 border-l border-success/30"><BodyText>{item}</BodyText></li>
-                    ))}
-                  </ul>
+                  <small>
+                    {item.type}
+                    {item.fromEmployee ? ' · Medarbejder' : ''}
+                    {item.status ? ` · ${item.status}` : ''}
+                  </small>
+                  <p>{item.summary}</p>
                 </div>
-                <div>
-                  <ContentLabel className="text-risk block mb-2">Det dræner</ContentLabel>
-                  <ul className="space-y-2">
-                    {employee.howToLead.drains.map((item, i) => (
-                      <li key={i} className="pl-3 border-l border-danger/30"><BodyText>{item}</BodyText></li>
-                    ))}
-                  </ul>
-                </div>
-                <div>
-                  <ContentLabel className="block mb-2">Feedback</ContentLabel>
-                  <BodyText>{employee.howToLead.feedback}</BodyText>
-                </div>
-                <div>
-                  <ContentLabel className="block mb-2">Svær samtale</ContentLabel>
-                  <BodyText>{employee.howToLead.difficult}</BodyText>
-                </div>
-              </div>
-              <HelperText className="mt-6">Baseret på observeret adfærd — ikke en fast type</HelperText>
-            </DossierSection>
-          </>
-        )}
+              </article>
+            ))}
+          </div>
+        </section>
 
-        {(employee.openCommitments || employee.promises) && (
-          <>
-            <Hairline />
-            <DossierSection title="Åbne løfter">
-              <div className="space-y-1">
-                {(employee.openCommitments || employee.promises.map((p) => ({
-                  who: p.who,
-                  text: p.text,
-                  due: null,
-                  status: p.status,
-                }))).map((c, i) => (
-                  <div key={i} className="commitment-item">
-                    <span className="schedule-time" />
-                    <div>
-                      <div className="timeline-title">{c.who} — {c.text}</div>
-                      {c.due && <div className="timeline-text">Forfald · {c.due}</div>}
-                    </div>
-                    <span className={`status-dot status-dot--${
-                      c.status === 'forsinket' ? 'risk' : c.status === 'afventer' ? 'caution' : 'blue'
-                    }`} />
-                  </div>
-                ))}
-              </div>
-            </DossierSection>
-          </>
-        )}
-
-        {employee.aiSuggestions && (
-          <>
-            <Hairline />
-            <section className="pb-16">
-              <div className="panel-title">
-                <SectionHeading as="h3">Næste skridt</SectionHeading>
-                <LeadOSSuggestionTag />
-              </div>
-              <div className="border-l-2 border-primary/35 pl-4 space-y-3">
-                {employee.aiSuggestions.map((suggestion, i) => (
-                  <BodyText key={i}>{suggestion}</BodyText>
-                ))}
-              </div>
-              <Button className="mt-6" variant="blue" onClick={() => onPrepareMeeting(employee.id)}>
-                Forbered 1:1
-              </Button>
-            </section>
-          </>
-        )}
+        <section className="card human-guide">
+          <span className="kicker">SÅDAN GÅR DU TIL {person.name.split(' ')[0].toUpperCase()}</span>
+          <h3>Ledelsesmanualen, der bliver klogere</h3>
+          <div className="guide-block positive">
+            <b>Det giver energi</b>
+            <p>{(how.energizes || []).slice(0, 2).join(' · ') || 'Konkret ansvar og synlig opfølgning.'}</p>
+          </div>
+          <div className="guide-block negative">
+            <b>Det dræner</b>
+            <p>{(how.drains || []).slice(0, 2).join(' · ') || 'Uafsluttede samtaler og uklare løfter.'}</p>
+          </div>
+          <div className="guide-block">
+            <b>Feedback</b>
+            <p>{how.feedback || 'Vær specifik og kort. Aftal ét næste skridt.'}</p>
+          </div>
+          <small>Baseret på observeret adfærd — ikke en fast persontype</small>
+        </section>
       </div>
-    </article>
+
+      <div className="profile-grid lower">
+        <section className="card">
+          <span className="kicker">ÅBNE LØFTER</span>
+          <h3>Det I har lovet hinanden</h3>
+          {commitments.map((c) => (
+            <div className="promise" key={c.text}>
+              <span>{c.who}</span>
+              <b>{c.text}</b>
+              <em>{c.status === 'forsinket' ? `${c.daysOverdue || ''} dage forsinket`.trim() : c.due}</em>
+            </div>
+          ))}
+        </section>
+        <section className="card">
+          <span className="kicker">UDVIKLING</span>
+          <h3>Fra samtale til synlig fremdrift</h3>
+          {development.map((d, i) => {
+            const progress = d.progress ?? [68, 42, 20][i] ?? 30;
+            return (
+              <div className="development" key={d.goal || d.title}>
+                <span>
+                  <b>{d.goal || d.title}</b>
+                  <small>{d.nextStep || d.target || ''}</small>
+                </span>
+                <div className="progress">
+                  <i style={{ width: `${progress}%` }} />
+                </div>
+                <em>{progress}%</em>
+              </div>
+            );
+          })}
+        </section>
+      </div>
+    </div>
   );
 }

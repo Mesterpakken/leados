@@ -7,21 +7,17 @@ export const currentUser = {
 
 export const currentDate = 'Fredag · 10. juli 2026';
 
+/** Canonical nav — kept for reference; App.jsx owns the live shell nav. */
 export const navItems = [
-  { id: 'cockpit', label: 'Overblik', icon: 'LayoutDashboard', count: '4' },
-  { id: 'salg', label: 'Salg', icon: 'Table2' },
-  { id: 'medarbejdere', label: 'Mennesker', icon: 'Users', count: '12' },
-  { id: 'moter', label: 'Samtaler', icon: 'MessageSquare', count: '3' },
-  { id: 'kalender', label: 'Ledelsesrytme', icon: 'Calendar', count: 'Q3' },
-  { id: 'provision', label: 'Løn & provision', icon: 'BarChart3' },
-  { id: 'beslutninger', label: 'Beslutninger', icon: 'Sparkles', count: '4' },
-  { id: 'saelger', label: 'Mit sælgercockpit', icon: 'LayoutDashboard' },
-  { id: 'tv', label: 'TV-tavle', icon: 'Table2' },
-  { id: 'morgenmoede', label: 'Morgenmøde', icon: 'Sunrise' },
-  { id: 'resultater', label: 'Resultater', icon: 'Table2' },
-  { id: 'indsigt', label: 'Indsigt', icon: 'BarChart3', count: '78' },
-  { id: 'ai', label: 'AI-assistent', icon: 'Sparkles', count: 'ny' },
-  { id: 'indstillinger', label: 'Indstillinger', icon: 'Settings' },
+  { id: 'overview', label: 'Overblik', group: 'primary' },
+  { id: 'sales', label: 'Salg', group: 'primary' },
+  { id: 'team', label: 'Medarbejdere', group: 'primary' },
+  { id: 'meetings', label: 'Samtaler', group: 'primary' },
+  { id: 'decisions', label: 'Beslutninger', group: 'primary' },
+  { id: 'calendar', label: 'Ledelsesrytme', group: 'primary' },
+  { id: 'compensation', label: 'Løn & provision', group: 'primary' },
+  { id: 'seller', label: 'Mit sælgercockpit', group: 'view' },
+  { id: 'tv', label: 'TV-tavle', group: 'view' },
 ];
 
 export const employees = [

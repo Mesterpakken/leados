@@ -1,124 +1,100 @@
-import { useState } from 'react';
-import {
-  Card, Button, FilterButton, EmployeeAvatar, TrendIcon, StatusBadge, PageTitle, BodyText,
-  Field, PageSubtitle, HelperText,
-} from '../components/ui';
-import { employees, employeeFilters } from '../data';
-import { Search } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { employees } from '../data';
+
+const filters = [
+  { id: 'Alle', test: () => true },
+  { id: 'Opmærksomhed', test: (e) => e.filterTags?.includes('attention') || e.status?.includes('opmærksomhed') },
+  { id: 'Topperformere', test: (e) => e.performance >= 100 },
+  { id: 'Forsinket 1:1', test: (e) => (e.lastOneOnOneDays || 0) > 20 },
+];
+
+function initials(name) {
+  return name
+    .split(' ')
+    .map((p) => p[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+}
 
 export default function Medarbejdere({ onNavigateToProfile, onNavigateToMeeting }) {
-  const [filter, setFilter] = useState('all');
-  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState('Alle');
 
-  const filtered = employees.filter((emp) => {
-    const matchesFilter = filter === 'all' || emp.filterTags.includes(filter);
-    const matchesSearch = emp.name.toLowerCase().includes(search.toLowerCase()) ||
-      emp.role.toLowerCase().includes(search.toLowerCase());
-    return matchesFilter && matchesSearch;
-  });
-
-  const handleAction = (e, emp) => {
-    e.stopPropagation();
-    if (emp.actionType === 'prepare-1-1') {
-      onNavigateToMeeting(emp.id);
-    } else {
-      onNavigateToProfile(emp.id);
-    }
-  };
+  const list = useMemo(() => {
+    const rule = filters.find((f) => f.id === filter)?.test || (() => true);
+    return employees.filter(rule);
+  }, [filter]);
 
   return (
-    <div className="max-w-[1280px]">
-      <header className="page-header">
-        <PageTitle>Medarbejdere</PageTitle>
-        <PageSubtitle>Dit menneskelige CRM — hvem kræver din opmærksomhed?</PageSubtitle>
-      </header>
-
-      <div className="flex flex-col gap-4 mb-6">
-        <div className="relative max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" />
-          <input
-            type="text"
-            placeholder="Søg medarbejdere..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="input-field"
-          />
+    <div className="content people-page">
+      <div className="people-intro">
+        <div>
+          <span className="kicker">DIT MENNESKELIGE CRM</span>
+          <h2>Forstå hele mennesket — over tid</h2>
+          <p>Én sammenhængende hukommelse på tværs af samtaler, noter, resultater, løfter og daglige signaler.</p>
         </div>
-        <div className="flex items-center gap-1.5 flex-wrap">
-          {employeeFilters.map((f) => (
-            <FilterButton
-              key={f.id}
-              active={filter === f.id}
-              onClick={() => setFilter(f.id)}
-            >
-              {f.label}
-            </FilterButton>
+        <button type="button" className="primary">
+          + Tilføj medarbejder
+        </button>
+      </div>
+
+      <div className="toolbar">
+        <div className="tabs">
+          {filters.map((f) => (
+            <button key={f.id} type="button" className={filter === f.id ? 'active' : ''} onClick={() => setFilter(f.id)}>
+              {f.id}
+            </button>
           ))}
         </div>
+        <span className="muted">{list.length} medarbejdere</span>
       </div>
 
-      <div className="space-y-3">
-        {filtered.map((emp) => (
-          <Card
-            key={emp.id}
-            hover
-            onClick={() => onNavigateToProfile(emp.id)}
-          >
-            <div className="employee-row">
-              <div className="employee-row__identity flex items-start gap-3 min-w-0">
-                <EmployeeAvatar name={emp.name} />
-                <div className="min-w-0 flex-1">
-                  <BodyText as="span" className="block truncate">{emp.name}</BodyText>
-                  <HelperText className="mt-1 truncate">{emp.role}</HelperText>
+      <div className="people-cards">
+        {list.map((p) => {
+          const tone = p.filterTags?.includes('attention') || p.filterTags?.includes('risk') ? 'attention' : p.performance >= 100 ? 'growth' : 'neutral';
+          return (
+            <button key={p.id} type="button" className="person-insight-card" onClick={() => onNavigateToProfile(p.id)}>
+              <div className="person-top">
+                <span className="large-avatar">{initials(p.name)}</span>
+                <div>
+                  <h3>{p.name}</h3>
+                  <p>{p.role}</p>
+                </div>
+                <span className={`signal-tag ${tone}`}>{p.attentionSignal || p.signal || p.status}</span>
+              </div>
+              <div className="person-signals">
+                <div>
+                  <small>Motivation</small>
+                  <b>{String(p.motivation).replace('.', ',')}</b>
+                </div>
+                <div>
+                  <small>Performance</small>
+                  <b>{p.performance}%</b>
+                </div>
+                <div>
+                  <small>Seneste 1:1</small>
+                  <b>{p.lastOneOnOneDays ? `${p.lastOneOnOneDays} dage` : p.lastOneOnOne}</b>
+                </div>
+                <div>
+                  <small>Åbne løfter</small>
+                  <b>{p.openPromises ?? p.openCommitments?.length ?? 0}</b>
                 </div>
               </div>
-              <div className="employee-row__stats">
-                <Field label="Motivation" numeric valueClassName="field-value--inline">
-                  <span className="flex items-center gap-1">
-                    {emp.motivation}
-                    <TrendIcon trend={emp.motivationTrend} />
-                  </span>
-                </Field>
-                <Field label="Performance">
-                  {emp.performance}% af mål
-                </Field>
-                <Field
-                  label="Seneste 1:1"
-                  valueClassName={emp.lastOneOnOneDays > 21 ? 'field-value--danger' : ''}
+              <div className="person-action">
+                <span
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onNavigateToMeeting(p.id);
+                  }}
                 >
-                  {emp.lastOneOnOne}
-                </Field>
-                <Field label="Åbne løfter" numeric>
-                  {emp.openPromises}
-                </Field>
-                <Field label="Signal" valueClassName="field-value--stacked w-full">
-                  <StatusBadge
-                    variant={
-                      emp.filterTags.includes('attention') || emp.filterTags.includes('risk') ? 'warning' : 'default'
-                    }
-                    className="employee-signal-badge"
-                  >
-                    {emp.attentionSignal}
-                  </StatusBadge>
-                </Field>
+                  Forbered 1:1
+                </span>
+                <b>›</b>
               </div>
-              <div className="employee-row__action">
-                <Button
-                  size="sm"
-                  rowAction
-                  onClick={(e) => handleAction(e, emp)}
-                >
-                  {emp.action}
-                </Button>
-              </div>
-            </div>
-          </Card>
-        ))}
+            </button>
+          );
+        })}
       </div>
-
-      {filtered.length === 0 && (
-        <div className="text-center py-12 text-muted">Ingen medarbejdere matcher dit filter.</div>
-      )}
     </div>
   );
 }

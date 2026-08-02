@@ -1,195 +1,310 @@
 import { useState } from 'react';
-import Sidebar from './components/Sidebar';
-import TopBar from './components/TopBar';
-import Cockpit from './views/Cockpit';
-import Morgenmoede from './views/Morgenmoede';
+import Toast from './components/Toast';
+import AiDrawer from './components/AiDrawer';
+import useToast from './hooks/useToast';
+import Overview from './views/Overview';
+import Salg from './views/Salg';
 import Medarbejdere from './views/Medarbejdere';
 import Medarbejderprofil from './views/Medarbejderprofil';
-import Moter from './views/Moter';
+import Samtaler from './views/Samtaler';
 import Samtalebrief from './views/Samtalebrief';
 import MoteModus from './views/MoteModus';
 import MoteOpsummering from './views/MoteOpsummering';
 import Fokusark from './views/Fokusark';
-import Kalender from './views/Kalender';
-import Indsigt from './views/Indsigt';
-import Resultater from './views/Resultater';
-import AIAssistent from './views/AIAssistent';
-import Indstillinger from './views/Indstillinger';
-import Salg from './views/Salg';
-import Provision from './views/Provision';
 import Beslutninger from './views/Beslutninger';
+import Ledelsesrytme from './views/Ledelsesrytme';
+import Provision from './views/Provision';
 import SaelgerCockpit from './views/SaelgerCockpit';
 import TvTavle from './views/TvTavle';
 
-const MEETING_FLOW_VIEWS = ['mote-live', 'mote-summary', 'fokusark'];
-const FULLSCREEN_VIEWS = ['tv', ...MEETING_FLOW_VIEWS];
+const PRIMARY_NAV = [
+  { id: 'overview', label: 'Overblik', icon: '⌁' },
+  { id: 'sales', label: 'Salg', icon: '↗' },
+  { id: 'team', label: 'Medarbejdere', icon: '◎' },
+  { id: 'meetings', label: 'Samtaler', icon: '◫' },
+  { id: 'decisions', label: 'Beslutninger', icon: '◇' },
+  { id: 'calendar', label: 'Ledelsesrytme', icon: '□' },
+  { id: 'compensation', label: 'Løn & provision', icon: '≈' },
+];
+
+const VIEW_NAV = [
+  { id: 'seller', label: 'Mit sælgercockpit', icon: '◉' },
+  { id: 'tv', label: 'TV-tavle', icon: '▣' },
+];
+
+const MEETING_FLOW = ['mote-live', 'mote-summary', 'fokusark'];
+
+const TITLES = {
+  overview: 'God eftermiddag, Mathias',
+  sales: 'Salg og performance',
+  team: 'Medarbejdere',
+  profil: 'Medarbejderbillede',
+  meetings: 'Samtalecenter',
+  'mote-brief': '1:1-forberedelse',
+  'mote-live': 'Møde i gang',
+  'mote-summary': 'Samtaleopsummering',
+  fokusark: 'Fokusark',
+  decisions: 'Beslutninger',
+  calendar: 'Ledelsesrytme',
+  compensation: 'Løn og provision',
+  seller: 'Mit cockpit',
+  tv: 'Live salgstavle',
+};
 
 export default function App() {
-  const [view, setView] = useState('cockpit');
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
-  const [profileOrigin, setProfileOrigin] = useState('cockpit');
-  const [briefOrigin, setBriefOrigin] = useState('profil');
+  const [section, setSection] = useState('overview');
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState('camilla-holm');
+  const [profileOrigin, setProfileOrigin] = useState('team');
+  const [briefOrigin, setBriefOrigin] = useState('meetings');
+  const [range, setRange] = useState('Denne uge');
+  const [aiOpen, setAiOpen] = useState(false);
+  const [decisionFocusId, setDecisionFocusId] = useState(null);
+  const { toast, notify } = useToast();
 
-  const isFullscreen = FULLSCREEN_VIEWS.includes(view);
+  const isMeetingFlow = MEETING_FLOW.includes(section);
+  const isTv = section === 'tv';
+  const hideChrome = isMeetingFlow || isTv;
 
-  const handleSidebarNavigate = (navId) => {
-    setView(navId);
-    setSelectedEmployeeId(null);
-  };
-
-  const handleNavigateToProfile = (employeeId) => {
-    setProfileOrigin(view);
-    setSelectedEmployeeId(employeeId);
-    setView('profil');
-  };
-
-  const handleNavigateToMeeting = (employeeId) => {
-    setBriefOrigin(view);
-    setSelectedEmployeeId(employeeId);
-    setView('mote-brief');
-  };
-
-  const handleStartMeeting = (employeeId) => {
-    setSelectedEmployeeId(employeeId);
-    setView('mote-live');
-  };
-
-  const handleStopMeeting = () => {
-    setView('mote-summary');
-  };
-
-  const handleGenerateFokusark = () => {
-    setView('fokusark');
-  };
-
-  const handleBack = () => {
-    if (view === 'mote-brief') {
-      setView(briefOrigin === 'mote-brief' ? 'moter' : briefOrigin);
-    } else if (view === 'profil') {
-      setView(profileOrigin);
-    } else {
-      setView('cockpit');
+  const go = (id) => {
+    setSection(id);
+    if (id !== 'profil' && id !== 'mote-brief' && !MEETING_FLOW.includes(id)) {
+      setDecisionFocusId(null);
     }
   };
 
-  const handleBackToCockpit = () => {
-    setView('cockpit');
-    setSelectedEmployeeId(null);
+  const openProfile = (employeeId, from = section) => {
+    setProfileOrigin(from);
+    setSelectedEmployeeId(employeeId);
+    setSection('profil');
   };
 
-  const renderView = () => {
-    switch (view) {
-      case 'cockpit':
+  const openBrief = (employeeId, from = section) => {
+    setBriefOrigin(from);
+    setSelectedEmployeeId(employeeId);
+    setSection('mote-brief');
+  };
+
+  const openDecisions = (id = null) => {
+    setDecisionFocusId(id);
+    setSection('decisions');
+    setAiOpen(false);
+  };
+
+  const activeNav = {
+    overview: 'overview',
+    sales: 'sales',
+    team: 'team',
+    profil: 'team',
+    meetings: 'meetings',
+    'mote-brief': 'meetings',
+    'mote-live': 'meetings',
+    'mote-summary': 'meetings',
+    fokusark: 'meetings',
+    decisions: 'decisions',
+    calendar: 'calendar',
+    compensation: 'compensation',
+    seller: 'seller',
+    tv: 'tv',
+  }[section];
+
+  const renderMain = () => {
+    switch (section) {
+      case 'overview':
         return (
-          <Cockpit
-            onNavigateToProfile={handleNavigateToProfile}
-            onNavigateToMeeting={handleNavigateToMeeting}
-            onNavigate={handleSidebarNavigate}
+          <Overview
+            onOpenProfile={openProfile}
+            onNavigate={go}
+            onOpenBrief={openBrief}
           />
         );
-      case 'salg':
-        return <Salg onOpenTv={() => setView('tv')} />;
-      case 'provision':
-        return <Provision />;
-      case 'beslutninger':
-        return <Beslutninger />;
-      case 'saelger':
-        return <SaelgerCockpit />;
-      case 'tv':
-        return <TvTavle onExit={() => setView('salg')} />;
-      case 'morgenmoede':
-        return <Morgenmoede />;
-      case 'medarbejdere':
+      case 'sales':
+        return <Salg notify={notify} onOpenTv={() => go('tv')} />;
+      case 'team':
         return (
           <Medarbejdere
-            onNavigateToProfile={handleNavigateToProfile}
-            onNavigateToMeeting={handleNavigateToMeeting}
+            onNavigateToProfile={(id) => openProfile(id, 'team')}
+            onNavigateToMeeting={(id) => openBrief(id, 'team')}
           />
         );
       case 'profil':
         return (
           <Medarbejderprofil
             employeeId={selectedEmployeeId}
-            onBack={handleBack}
-            onPrepareMeeting={handleNavigateToMeeting}
+            onBack={() => go(profileOrigin)}
+            onPrepareMeeting={(id) => openBrief(id, 'profil')}
           />
         );
-      case 'moter':
-        return (
-          <Moter onNavigateToBrief={handleNavigateToMeeting} />
-        );
+      case 'meetings':
+        return <Samtaler onOpenBrief={(id) => openBrief(id, 'meetings')} />;
       case 'mote-brief':
         return (
           <Samtalebrief
             employeeId={selectedEmployeeId}
-            onBack={handleBack}
-            onBackToCockpit={handleBackToCockpit}
-            onStartMeeting={handleStartMeeting}
+            onBack={() => go(briefOrigin)}
+            onBackToCockpit={() => go('overview')}
+            onStartMeeting={(id) => {
+              setSelectedEmployeeId(id);
+              setSection('mote-live');
+            }}
           />
         );
       case 'mote-live':
         return (
           <MoteModus
             employeeId={selectedEmployeeId}
-            onStopMeeting={handleStopMeeting}
+            onStopMeeting={() => setSection('mote-summary')}
           />
         );
       case 'mote-summary':
         return (
           <MoteOpsummering
             employeeId={selectedEmployeeId}
-            onGenerateFokusark={handleGenerateFokusark}
-            onBackToBrief={() => setView('mote-brief')}
+            onGenerateFokusark={() => setSection('fokusark')}
+            onBackToBrief={() => setSection('mote-brief')}
           />
         );
       case 'fokusark':
         return (
           <Fokusark
             employeeId={selectedEmployeeId}
-            onBack={() => setView('mote-summary')}
+            onBack={() => setSection('mote-summary')}
           />
         );
-      case 'kalender':
-        return <Kalender onNavigateToBrief={handleNavigateToMeeting} />;
-      case 'indsigt':
-        return <Indsigt />;
-      case 'resultater':
-        return <Resultater />;
-      case 'ai':
-        return <AIAssistent />;
-      case 'indstillinger':
-        return <Indstillinger />;
-      default:
+      case 'decisions':
         return (
-          <Cockpit
-            onNavigateToProfile={handleNavigateToProfile}
-            onNavigateToMeeting={handleNavigateToMeeting}
-            onNavigate={handleSidebarNavigate}
+          <Beslutninger
+            notify={notify}
+            focusId={decisionFocusId}
+            onAskAi={() => setAiOpen(true)}
           />
         );
+      case 'calendar':
+        return <Ledelsesrytme onNavigateToBrief={(id) => openBrief(id, 'calendar')} />;
+      case 'compensation':
+        return <Provision notify={notify} />;
+      case 'seller':
+        return <SaelgerCockpit />;
+      case 'tv':
+        return <TvTavle onExit={() => go('sales')} />;
+      default:
+        return <Overview onOpenProfile={openProfile} onNavigate={go} onOpenBrief={openBrief} />;
     }
   };
 
-  if (view === 'tv') {
-    return renderView();
+  if (isTv) {
+    return (
+      <>
+        {renderMain()}
+        <Toast message={toast} />
+      </>
+    );
+  }
+
+  if (isMeetingFlow) {
+    return (
+      <>
+        {renderMain()}
+        <Toast message={toast} />
+        <AiDrawer
+          open={aiOpen}
+          onClose={() => setAiOpen(false)}
+          onSendToMichael={() => openDecisions('dec-demo')}
+          onOpenDecision={openDecisions}
+        />
+      </>
+    );
   }
 
   return (
-    <div className="min-h-screen bg-paper">
-      {!isFullscreen && (
-        <Sidebar activeView={view} onNavigate={handleSidebarNavigate} />
-      )}
-      <div
-        className="min-h-screen flex flex-col"
-        style={{ marginLeft: isFullscreen ? 0 : 'var(--sidebar-width)' }}
-      >
-        {!isFullscreen && (
-          <TopBar activeView={view} onAskAi={() => setView('ai')} />
+    <div className="app-shell">
+      <aside className="sidebar">
+        <div className="brand">
+          <span className="brand-mark">L</span>
+          <div>
+            <strong>Lead OS</strong>
+            <small>Commercial operating system</small>
+          </div>
+        </div>
+        <div className="workspace">
+          <span>NT</span>
+          <div>
+            <b>Nordic Tools</b>
+            <small>Demo workspace</small>
+          </div>
+          <i>⌄</i>
+        </div>
+        <nav>
+          <p>ARBEJDSRUM</p>
+          {PRIMARY_NAV.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className={activeNav === item.id ? 'active' : ''}
+              onClick={() => go(item.id)}
+            >
+              <span>{item.icon}</span>
+              {item.label}
+            </button>
+          ))}
+          <p>VISNING</p>
+          {VIEW_NAV.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className={activeNav === item.id ? 'active' : ''}
+              onClick={() => go(item.id)}
+            >
+              <span>{item.icon}</span>
+              {item.label}
+            </button>
+          ))}
+        </nav>
+        <div className="sidebar-bottom">
+          <div className="avatar">MN</div>
+          <div>
+            <b>Mathias Nitzsch</b>
+            <small>Rådgiver · administrator</small>
+          </div>
+          <button type="button" aria-label="Mere">•••</button>
+        </div>
+      </aside>
+
+      <main className="main">
+        {!hideChrome && (
+          <header>
+            <div>
+              <p className="eyebrow">SØNDAG · 2. AUGUST</p>
+              <h1>{TITLES[section] || 'Lead OS'}</h1>
+            </div>
+            <div className="header-actions">
+              <select value={range} onChange={(e) => setRange(e.target.value)} aria-label="Periode">
+                <option>Denne uge</option>
+                <option>Denne måned</option>
+                <option>Dette kvartal</option>
+              </select>
+              <button type="button" className="secondary" onClick={() => setAiOpen(true)}>
+                Spørg AI
+              </button>
+              <button
+                type="button"
+                className="primary"
+                onClick={() => notify('Ny aktivitet er klar til registrering')}
+              >
+                + Registrér aktivitet
+              </button>
+            </div>
+          </header>
         )}
-        <main className={`app-content ${view === 'profil' || view === 'mote-brief' ? 'app-content--narrow' : ''}`}>
-          {renderView()}
-        </main>
-      </div>
+        {renderMain()}
+      </main>
+
+      <Toast message={toast} />
+      <AiDrawer
+        open={aiOpen}
+        onClose={() => setAiOpen(false)}
+        onSendToMichael={() => openDecisions('dec-demo')}
+        onOpenDecision={openDecisions}
+      />
     </div>
   );
 }

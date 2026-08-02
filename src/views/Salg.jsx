@@ -1,7 +1,5 @@
 import { useState } from 'react';
 import CommercialMetric from '../components/CommercialMetric';
-import Toast from '../components/Toast';
-import useToast from '../hooks/useToast';
 import { commercialSales } from '../data/commercial';
 import { money, nextTierFor } from '../lib/commission';
 
@@ -41,119 +39,117 @@ const insights = {
   },
 };
 
-export default function Salg({ onOpenTv }) {
+export default function Salg({ notify, onOpenTv }) {
   const [view, setView] = useState('Samlet');
-  const { toast, notify } = useToast();
   const metrics = metricSets[view];
   const insight = insights[view];
+  const board = commercialSales;
 
   return (
-    <div className="los-commercial">
-      <div className="content">
-        <div className="toolbar">
-          <div className="tabs">
-            {['Samlet', 'Nysalg', 'Gensalg'].map((x) => (
-              <button key={x} type="button" className={view === x ? 'active' : ''} onClick={() => setView(x)}>
-                {x}
-              </button>
-            ))}
-          </div>
-          <button
-            type="button"
-            className="secondary"
-            onClick={() => {
-              notify('TV-tavlen er opdateret');
-              onOpenTv?.();
-            }}
-          >
-            Opdatér TV-tavle
-          </button>
-        </div>
-
-        <div className="metric-grid">
-          {metrics.map((m) => (
-            <CommercialMetric key={m[0]} label={m[0]} value={m[1]} delta={m[2]} note="" warning={m[3] === 'warn'} />
+    <div className="content">
+      <div className="toolbar">
+        <div className="tabs">
+          {['Samlet', 'Nysalg', 'Gensalg'].map((x) => (
+            <button key={x} type="button" className={view === x ? 'active' : ''} onClick={() => setView(x)}>
+              {x}
+            </button>
           ))}
         </div>
+        <button
+          type="button"
+          className="secondary"
+          onClick={() => {
+            notify('TV-tavlen er opdateret');
+            onOpenTv?.();
+          }}
+        >
+          Opdatér TV-tavle
+        </button>
+      </div>
 
-        <div className="sales-split">
-          <article className="card">
-            <div className="card-head">
-              <div>
-                <span className="kicker">LEDERENS LÆSNING</span>
-                <h3>{insight.title}</h3>
-              </div>
-              <span className="live">LIVE</span>
-            </div>
-            <p className="insight-copy">{insight.copy}</p>
-          </article>
-          <article className="card">
-            <span className="kicker">AFDELINGSTEMPO</span>
-            <div className="dept-row">
-              <span>
-                <b>Nysalg</b>
-                <small>7 / 9 nye kunder</small>
-              </span>
-              <div className="progress">
-                <i style={{ width: '78%' }} />
-              </div>
-              <em>78%</em>
-            </div>
-            <div className="dept-row">
-              <span>
-                <b>Gensalg</b>
-                <small>184.600 / 171.000 kr.</small>
-              </span>
-              <div className="progress">
-                <i style={{ width: '100%' }} />
-              </div>
-              <em>108%</em>
-            </div>
-          </article>
-        </div>
+      <div className="metric-grid">
+        {metrics.map((m) => (
+          <CommercialMetric key={m[0]} label={m[0]} value={m[1]} delta={m[2]} note="" warning={m[3] === 'warn'} />
+        ))}
+      </div>
 
-        <article className="card table-card">
+      <div className="sales-split">
+        <article className="card">
           <div className="card-head">
             <div>
-              <span className="kicker">PERFORMANCE · {view.toUpperCase()}</span>
-              <h3>Det lederen skal reagere på</h3>
+              <span className="kicker">LEDERENS LÆSNING</span>
+              <h3>{insight.title}</h3>
             </div>
-            <span className="muted">Dagens tal · sælgerregistreret · ledergodkendt</span>
+            <span className="live">LIVE</span>
           </div>
-          <table>
-            <thead>
-              <tr>
-                <th>Sælger</th>
-                <th>Afdeling</th>
-                <th>I dag</th>
-                <th>Måned</th>
-                <th>Gns. ordre</th>
-                <th>Næste provisionstrin</th>
-              </tr>
-            </thead>
-            <tbody>
-              {commercialSales.map((s, i) => {
-                const month = s.amount + i * 28000;
-                const next = nextTierFor(month);
-                return (
-                  <tr key={s.name}>
-                    <td>
-                      <span className="person-dot">{s.name[0]}</span>
-                      <b>{s.name}</b>
-                    </td>
-                    <td>{s.dept}</td>
-                    <td>{money(12400 + i * 5900)}</td>
-                    <td>{money(month)}</td>
-                    <td>{money(Math.round((s.amount + i * 8000) / (s.orders + 5)))}</td>
-                    <td>{next ? money(next.threshold - month) : 'Toptrin nået'}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          <p className="insight-copy">{insight.copy}</p>
+        </article>
+        <article className="card">
+          <span className="kicker">AFDELINGSTEMPO</span>
+          <div className="dept-row">
+            <span>
+              <b>Nysalg</b>
+              <small>7 / 9 nye kunder</small>
+            </span>
+            <div className="progress">
+              <i style={{ width: '78%' }} />
+            </div>
+            <em>78%</em>
+          </div>
+          <div className="dept-row">
+            <span>
+              <b>Gensalg</b>
+              <small>184.600 / 171.000 kr.</small>
+            </span>
+            <div className="progress">
+              <i style={{ width: '100%' }} />
+            </div>
+            <em>108%</em>
+          </div>
         </article>
       </div>
-      <Toast message={toast} />
+
+      <article className="card table-card">
+        <div className="card-head">
+          <div>
+            <span className="kicker">PERFORMANCE · {view.toUpperCase()}</span>
+            <h3>Det lederen skal reagere på</h3>
+          </div>
+          <span className="muted">Dagens tal · sælgerregistreret · ledergodkendt</span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Sælger</th>
+              <th>Afdeling</th>
+              <th>I dag</th>
+              <th>Måned</th>
+              <th>Gns. ordre</th>
+              <th>Næste provisionstrin</th>
+            </tr>
+          </thead>
+          <tbody>
+            {board.map((s, i) => {
+              const month = s.amount + i * 28000;
+              const next = nextTierFor(month);
+              const avg = Math.round((s.amount + i * 8000) / (s.orders + 5));
+              return (
+                <tr key={s.name}>
+                  <td className="cell-person">
+                    <span className="person-dot">{s.name[0]}</span>
+                    <b title={s.name}>{s.name}</b>
+                  </td>
+                  <td>{s.dept || (i < 2 ? 'Nysalg' : 'Gensalg')}</td>
+                  <td>{money(12400 + i * 5900)}</td>
+                  <td>{money(month)}</td>
+                  <td>{money(avg)}</td>
+                  <td>{next ? money(next.threshold - month) : 'Toptrin nået'}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </article>
     </div>
   );
 }

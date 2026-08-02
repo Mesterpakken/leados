@@ -1,21 +1,5 @@
 import { useState } from 'react';
-import {
-  Button, SectionHeader, PageTitle, Hairline, BodyText, HelperText, MonoLabel, ContentLabel,
-} from '../components/ui';
 import { getEmployeeById, getMeetingMocks } from '../data';
-
-function EditableBlock({ editing, className = '', children, ...props }) {
-  return (
-    <div
-      contentEditable={editing}
-      suppressContentEditableWarning
-      className={`${editing ? 'editable-field editable-field--active' : 'editable-field'} ${className}`}
-      {...props}
-    >
-      {children}
-    </div>
-  );
-}
 
 export default function Fokusark({ employeeId, onBack }) {
   const employee = getEmployeeById(employeeId);
@@ -25,147 +9,94 @@ export default function Fokusark({ employeeId, onBack }) {
 
   if (!employee || !fokusark) {
     return (
-      <div className="max-w-[720px] mx-auto">
-        <BodyText>Fokusark er ikke tilgængeligt for denne medarbejder.</BodyText>
+      <div className="content">
+        <p className="muted">Fokusark er ikke tilgængeligt for denne medarbejder.</p>
         {onBack && (
-          <Button variant="secondary" className="mt-4" onClick={onBack}>
+          <button type="button" className="secondary" style={{ marginTop: 12 }} onClick={onBack}>
             Tilbage
-          </Button>
+          </button>
         )}
       </div>
     );
   }
 
-  const handleSend = () => {
-    setToast(`Fokusark sendt til ${employee.name}`);
-    setTimeout(() => setToast(null), 3200);
-  };
-
   return (
-    <div className="max-w-[720px] mx-auto relative">
-      {toast && (
-        <div className="fokusark-toast" role="status">
-          <span className="w-1.5 h-1.5 rounded-full bg-success shrink-0" />
-          {toast}
-        </div>
-      )}
+    <div className="content" style={{ maxWidth: 720 }}>
+      {toast && <div className="toast">{toast}</div>}
 
-      <div className="flex items-center justify-between mb-8">
-        <HelperText>
-          {editing ? 'Rediger indholdet — godkend før afsendelse' : 'Gennemse og godkend før afsendelse'}
-        </HelperText>
-        <div className="flex items-center gap-2">
-          <Button
-            variant={editing ? 'primary' : 'secondary'}
-            size="sm"
-            onClick={() => setEditing((e) => !e)}
-          >
+      <div className="summary-head">
+        <div>
+          <span className="kicker">FOKUSARK · {fokusark.meetingType?.toUpperCase()}</span>
+          <h2>{employee.name}</h2>
+          <p>
+            {fokusark.meetingDate} · udarbejdet af {fokusark.preparedBy}
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button type="button" className="secondary" onClick={onBack}>
+            Tilbage
+          </button>
+          <button type="button" className="secondary" onClick={() => setEditing((v) => !v)}>
             {editing ? 'Færdig' : 'Redigér'}
-          </Button>
-          <Button size="sm" onClick={handleSend}>
+          </button>
+          <button
+            type="button"
+            className="primary"
+            onClick={() => {
+              setToast(`Fokusark sendt til ${employee.name}`);
+              window.setTimeout(() => setToast(null), 2200);
+            }}
+          >
             Send til medarbejder
-          </Button>
+          </button>
         </div>
       </div>
 
-      <article className="fokusark-sheet">
-        <header className="pb-8 mb-8 border-b border-border">
-          <PageTitle className="text-[1.85rem] mb-3">
-            Fokusark — {employee.name}
-          </PageTitle>
-          <MonoLabel className="text-[11px] text-subtle">
-            {fokusark.meetingType} · {fokusark.meetingDate} · Udarbejdet af {fokusark.preparedBy}
-          </MonoLabel>
-        </header>
-
-        <section className="mb-10">
-          <SectionHeader title="Kort opsummering" />
-          <EditableBlock editing={editing} className="body-text text-[15px] leading-relaxed">
-            {fokusark.kortOpsummering}
-          </EditableBlock>
-        </section>
-
-        <Hairline />
-
-        <section className="mb-10">
-          <SectionHeader title="Det gør du godt" />
-          <ul className="space-y-2.5">
-            {fokusark.strengths.map((item, i) => (
-              <li key={i} className="flex items-start gap-3">
-                <span className="font-mono text-[11px] text-success mt-0.5 shrink-0">+</span>
-                <EditableBlock editing={editing} className="body-text flex-1">
-                  {item}
-                </EditableBlock>
-              </li>
-            ))}
-          </ul>
-        </section>
-
-        <Hairline />
-
-        <section className="mb-10 space-y-8">
-          {fokusark.fokuspunkter.map((punkt, i) => (
-            <div key={i}>
-              <MonoLabel className="block mb-2 text-[10px] text-subtle">
-                Fokuspunkt {i + 1}
-              </MonoLabel>
-              <EditableBlock editing={editing} className="font-display text-[1.1rem] font-medium text-ink mb-2 tracking-[-0.02em]">
-                {punkt.title}
-              </EditableBlock>
-              <div className="space-y-2 pl-0">
-                <div>
-                  <ContentLabel>Det betyder</ContentLabel>
-                  <EditableBlock editing={editing} className="body-text mt-1">
-                    {punkt.meaning}
-                  </EditableBlock>
-                </div>
-                <div>
-                  <ContentLabel>Øvelse</ContentLabel>
-                  <EditableBlock editing={editing} className="body-text mt-1">
-                    {punkt.exercise}
-                  </EditableBlock>
-                </div>
-              </div>
-            </div>
-          ))}
-        </section>
-
-        <Hairline />
-
-        <section className="mb-10">
-          <SectionHeader title="Aftaler til næste møde" />
-          <ul className="space-y-2.5">
-            {fokusark.aftaler.map((item, i) => (
-              <li key={i} className="flex items-start gap-3">
-                <span className="w-1 h-1 rounded-full bg-ink/30 mt-2.5 shrink-0" />
-                <EditableBlock editing={editing} className="body-text flex-1">
-                  {item}
-                </EditableBlock>
-              </li>
-            ))}
-          </ul>
-        </section>
-
-        <Hairline />
-
-        <section>
-          <SectionHeader title="Næste opfølgning" />
-          <EditableBlock editing={editing} className="font-display text-[1.05rem] text-ink mb-1">
-            {fokusark.naesteOpfoelgning.date}
-          </EditableBlock>
-          <EditableBlock editing={editing} className="body-text text-muted">
-            {fokusark.naesteOpfoelgning.focus}
-          </EditableBlock>
-        </section>
+      <article className="card" style={{ marginBottom: 14 }}>
+        <span className="kicker">KORT OPSUMMERING</span>
+        <p
+          contentEditable={editing}
+          suppressContentEditableWarning
+          style={{ fontFamily: 'Georgia, serif', fontSize: 15, lineHeight: 1.55 }}
+        >
+          {fokusark.kortOpsummering}
+        </p>
       </article>
 
-      {onBack && (
-        <div className="mt-8 pb-8">
-          <Button variant="ghost" onClick={onBack}>
-            Tilbage til opsummering
-          </Button>
-        </div>
-      )}
+      <article className="card" style={{ marginBottom: 14 }}>
+        <span className="kicker">DET GØR DU GODT</span>
+        <ul style={{ margin: '10px 0 0', paddingLeft: 18 }}>
+          {fokusark.strengths.map((s) => (
+            <li key={s} style={{ marginBottom: 6, fontSize: 13 }}>
+              {s}
+            </li>
+          ))}
+        </ul>
+      </article>
+
+      {fokusark.fokuspunkter.map((f, i) => (
+        <article className="card" key={f.title} style={{ marginBottom: 14 }}>
+          <span className="kicker">FOKUSPUNKT {i + 1}</span>
+          <h3 style={{ marginTop: 6 }}>{f.title}</h3>
+          <p style={{ fontSize: 12, color: '#555e57' }}>{f.meaning}</p>
+          <div className="notice" style={{ marginTop: 10, marginBottom: 0 }}>
+            <b>Øvelse</b>
+            <p>{f.exercise}</p>
+          </div>
+        </article>
+      ))}
+
+      <article className="card">
+        <span className="kicker">AFTALER · NÆSTE OPFØLGNING</span>
+        {fokusark.aftaler.map((a) => (
+          <div className="summary-row" key={a}>
+            <span>{a}</span>
+          </div>
+        ))}
+        <p style={{ fontSize: 12, marginTop: 12 }}>
+          <b>{fokusark.naesteOpfoelgning.date}</b> — {fokusark.naesteOpfoelgning.focus}
+        </p>
+      </article>
     </div>
   );
 }
