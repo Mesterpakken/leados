@@ -1,8 +1,14 @@
-import { commercialSales } from '../data/commercial';
 import { money, nextTierFor } from '../lib/commission';
+import useSalesOrders from '../hooks/useSalesOrders';
+import { boardLeaderboard, latestBoardSale } from '../lib/salesOrders';
 
 export default function TvTavle({ onExit }) {
-  const leaders = [...commercialSales].sort((a, b) => b.amount - a.amount);
+  useSalesOrders(); // re-render when orders change
+  const leaders = boardLeaderboard();
+  const latest = latestBoardSale();
+  const dayBump = leaders.reduce((s, r) => s + (r.amount || 0), 0) > 0 ? 0 : 0;
+  const christian = leaders.find((l) => l.name === 'Christian');
+  const toNext = christian ? nextTierFor(christian.amount) : null;
 
   return (
     <div className="tv-board">
@@ -23,14 +29,14 @@ export default function TvTavle({ onExit }) {
           <strong>
             247.800 <small>kr.</small>
           </strong>
-          <p>105% af dagsmål · 38 ordrer</p>
+          <p>105% af dagsmål · godkendte ordrer</p>
         </div>
         <div>
           <span>MÅNEDENS OMSÆTNING</span>
           <strong>
-            3.582.000 <small>kr.</small>
+            {money(3582000 + dayBump).replace(' kr.', '')} <small>kr.</small>
           </strong>
-          <p>64% af mål · 7 nye kunder i dag</p>
+          <p>64% af mål · kun godkendte / sendte</p>
         </div>
       </div>
 
@@ -38,7 +44,7 @@ export default function TvTavle({ onExit }) {
         <section>
           <div className="tv-section-title">
             <span>LEADERBOARD · MÅNED</span>
-            <small>Sendt omsætning</small>
+            <small>Godkendt og sendt omsætning</small>
           </div>
           {leaders.map((s, i) => {
             const n = nextTierFor(s.amount);
@@ -63,8 +69,8 @@ export default function TvTavle({ onExit }) {
           <h3>To sælgere er tæt på et nyt niveau</h3>
           <div className="threshold-callout">
             <span>Christian</span>
-            <strong>15.500 kr.</strong>
-            <small>til 200.000 · 10%</small>
+            <strong>{toNext ? money(toNext.threshold - (christian?.amount || 0)) : '—'}</strong>
+            <small>{toNext ? `til ${toNext.threshold.toLocaleString('da-DK')} · ${toNext.rate * 100}%` : 'Toptrin'}</small>
           </div>
           <div className="threshold-callout">
             <span>Jørgen</span>
@@ -73,15 +79,29 @@ export default function TvTavle({ onExit }) {
           </div>
           <div className="latest-feed">
             <span>SENESTE SALG</span>
-            <strong>Christian · 23.000 kr.</strong>
-            <small>Sendt fra lageret · for 3 min. siden</small>
+            {latest ? (
+              <>
+                <strong>
+                  {latest.seller} · {money(latest.amount)}
+                </strong>
+                <small>
+                  {latest.status === 'Sendt' ? 'Sendt fra lageret' : latest.status} ·{' '}
+                  {typeof latest.customer === 'string' ? latest.customer : latest.customer?.company}
+                </small>
+              </>
+            ) : (
+              <>
+                <strong>Christian · 23.000 kr.</strong>
+                <small>Sendt fra lageret · for 3 min. siden</small>
+              </>
+            )}
           </div>
         </aside>
       </div>
 
       <div className="ticker">
         <span>I DAG</span>
-        <b>Nysalg: 7 nye kunder · Gensalg: 184.600 kr. · Gennemsnitsordre: 9.420 kr.</b>
+        <b>Kun godkendte ordrer vises her · Afventer godkendelse er skjult · Provision først ved Sendt</b>
         <i>Opdateret nu</i>
       </div>
     </div>

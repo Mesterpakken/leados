@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import CommercialMetric from '../components/CommercialMetric';
-import { sellerDemo, sellerOrders } from '../data/commercial';
+import { sellerDemo } from '../data/commercial';
 import {
   DEMO_SELLER_NAME,
   SOURCE_LABELS,
@@ -19,6 +19,15 @@ import {
   webSearchDemo,
 } from '../data/knowledge';
 import { commissionFor, money, nextTierFor } from '../lib/commission';
+import useSalesOrders from '../hooks/useSalesOrders';
+import {
+  DEMO_SELLER,
+  commissionableRevenue,
+  pendingRevenue,
+  resetSalesOrdersDemo,
+  returnsTotal,
+  statusPillClass,
+} from '../lib/salesOrders';
 
 const statusMeta = {
   approved: { label: 'Godkendt svar', className: 'kb-status approved' },
@@ -69,8 +78,14 @@ function queueLabel(status) {
   return queueStatusLabels[status] || status;
 }
 
-export default function SaelgerCockpit({ notify, section = 'seller-cockpit', role = 'seller' }) {
+export default function SaelgerCockpit({
+  notify,
+  section = 'seller-cockpit',
+  role = 'seller',
+  onRegisterSale,
+}) {
   const { entries, queue, hardMoments, setEntries, setQueue, setHardMoments } = useSharedKnowledge();
+  const salesOrders = useSalesOrders();
   const [askTab, setAskTab] = useState('ask');
   const [leaderTab, setLeaderTab] = useState('questions');
   const [query, setQuery] = useState('');
@@ -86,7 +101,16 @@ export default function SaelgerCockpit({ notify, section = 'seller-cockpit', rol
   const [searchingWeb, setSearchingWeb] = useState(false);
   const [experiencePending, setExperiencePending] = useState(null);
 
-  const { revenue } = sellerDemo;
+  const myOrders = useMemo(
+    () => salesOrders.filter((o) => o.seller === DEMO_SELLER),
+    [salesOrders],
+  );
+  // Keep demo baseline (184.500) while reflecting newly sent / returned demo orders.
+  const seedCommissionable = 23000 + 31200;
+  const liveCommissionable = commissionableRevenue(DEMO_SELLER);
+  const revenue = Math.max(0, sellerDemo.revenue - seedCommissionable + liveCommissionable);
+  const pendingAmt = pendingRevenue(DEMO_SELLER);
+  const returnsAmt = returnsTotal(DEMO_SELLER);
   const c = commissionFor(revenue);
   const next = nextTierFor(revenue);
 
@@ -655,6 +679,14 @@ export default function SaelgerCockpit({ notify, section = 'seller-cockpit', rol
             <span className="kicker">{sellerDemo.name.toUpperCase()} · MIT COCKPIT</span>
             <h2>Du er {next ? money(next.threshold - revenue) : 'på toptrinnet'} fra næste provisionstrin</h2>
             <p>Kun ordrer med status Sendt tæller i provisionsgivende omsætning.</p>
+            <button
+              type="button"
+              className="primary"
+              style={{ marginTop: 14, background: '#e7eadf', color: '#263a30', borderColor: '#e7eadf' }}
+              onClick={onRegisterSale}
+            >
+              + Registrér salg
+            </button>
           </div>
           <div className="seller-rate">
             <small>NUVÆRENDE SATS</small>
@@ -677,13 +709,13 @@ export default function SaelgerCockpit({ notify, section = 'seller-cockpit', rol
           />
           <CommercialMetric
             label="AFVENTENDE OMSÆTNING"
-            value={money(sellerDemo.pendingRevenue)}
+            value={money(pendingAmt || sellerDemo.pendingRevenue)}
             delta="Ikke sendt endnu"
             note="Tæller ikke endnu"
           />
           <CommercialMetric
             label="RETURNERINGER / KORREKTIONER"
-            value={money(sellerDemo.returns)}
+            value={money(returnsAmt || sellerDemo.returns)}
             delta="Trukket fra"
             note="Returneret / annulleret"
           />
@@ -725,16 +757,27 @@ export default function SaelgerCockpit({ notify, section = 'seller-cockpit', rol
 
   /* ─── Seller: Mine salg ─── */
   if (section === 'seller-sales') {
-    const registered = sellerOrders.reduce((s, o) => s + (o.amount > 0 ? o.amount : 0), 0);
-    const approved = sellerOrders
-      .filter((o) => ['Godkendt', 'Afventer afsendelse', 'Sendt'].includes(o.status) && o.amount > 0)
+    const registered = myOrders.reduce((s, o) => s + (o.amount > 0 ? o.amount : 0), 0);
+    const approved = myOrders
+      .filter(
+        (o) =>
+          ['Godkendt', 'Klar til lager', 'Afventer afsendelse', 'Sendt'].includes(o.status) && o.amount > 0,
+      )
       .reduce((s, o) => s + o.amount, 0);
-    const commissionable = sellerOrders
-      .filter((o) => o.countsForCommission)
-      .reduce((s, o) => s + o.amount, 0);
+    const commissionable = myOrders.filter((o) => o.countsForCommission).reduce((s, o) => s + o.amount, 0);
 
     return (
       <div className="content seller-view">
+        <div className="toolbar" style={{ alignItems: 'center' }}>
+          <div>
+            <span className="kicker">MINE SALG</span>
+            <h2 style={{ fontSize: 24, marginTop: 6 }}>Dine registrerede ordrer</h2>
+          </div>
+          <button type="button" className="primary" onClick={onRegisterSale}>
+            + Registrér salg
+          </button>
+        </div>
+
         <div className="metric-grid">
           <CommercialMetric label="REGISTRERET SALG" value={money(registered)} delta="Alle positive ordrer" note="" />
           <CommercialMetric label="GODKENDT SALG" value={money(approved)} delta="Godkendt eller længere" note="" />
@@ -742,12 +785,6 @@ export default function SaelgerCockpit({ notify, section = 'seller-cockpit', rol
         </div>
 
         <article className="card table-card">
-          <div className="card-head">
-            <div>
-              <span className="kicker">MINE SALG</span>
-              <h3>Dine registrerede ordrer</h3>
-            </div>
-          </div>
           <p className="muted" style={{ fontSize: 11, margin: '0 0 14px' }}>
             Kun status <b>Sendt</b> tæller med i den provisionsgivende omsætning.
           </p>
@@ -764,34 +801,63 @@ export default function SaelgerCockpit({ notify, section = 'seller-cockpit', rol
               </tr>
             </thead>
             <tbody>
-              {sellerOrders.map((o) => (
-                <tr key={o.id}>
-                  <td>
-                    <b>{o.id}</b>
-                  </td>
-                  <td>{o.customer}</td>
-                  <td>{o.registeredAt}</td>
-                  <td className={o.amount < 0 ? 'negative' : ''}>{money(o.amount)}</td>
-                  <td>{o.special || '—'}</td>
-                  <td>
-                    <span className={`pill ${o.status === 'Sendt' ? '' : 'amber'}`}>{o.status}</span>
-                  </td>
-                  <td>
-                    {o.countsForCommission ? (
-                      <span className="pill">Tæller med</span>
-                    ) : (
-                      <span className="muted" style={{ fontSize: 10 }}>
-                        {o.reason || 'Tæller ikke'}
-                      </span>
-                    )}
-                  </td>
-                </tr>
-              ))}
+              {myOrders.map((o) => {
+                const company = typeof o.customer === 'string' ? o.customer : o.customer?.company;
+                return (
+                  <tr key={o.id}>
+                    <td>
+                      <b>{o.id}</b>
+                    </td>
+                    <td>{company}</td>
+                    <td>{o.registeredAt}</td>
+                    <td className={o.amount < 0 ? 'negative' : ''}>{money(o.amount)}</td>
+                    <td>{o.special || '—'}</td>
+                    <td>
+                      <span className={`pill ${statusPillClass(o.status)}`}>{o.status}</span>
+                    </td>
+                    <td>
+                      {o.countsForCommission ? (
+                        <span className="pill">Tæller med</span>
+                      ) : (
+                        <span className="muted" style={{ fontSize: 10 }}>
+                          {o.reason || 'Tæller ikke'}
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
-          <p className="muted" style={{ fontSize: 10, marginTop: 16 }}>
-            Ordrestatus kan senere synkroniseres med Nordic Tools’ ordre- eller økonomisystem.
-          </p>
+
+          {myOrders.some((o) => o.status === 'Skal rettes' && o.leaderMessage) && (
+            <div className="reg-flag" style={{ marginTop: 16 }}>
+              <b>Besked fra Michael</b>
+              {myOrders
+                .filter((o) => o.status === 'Skal rettes' && o.leaderMessage)
+                .map((o) => (
+                  <p key={o.id}>
+                    <b>{o.id}:</b> {o.leaderMessage}
+                  </p>
+                ))}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 16, gap: 12 }}>
+            <p className="muted" style={{ fontSize: 10, margin: 0 }}>
+              Ordrestatus kan senere synkroniseres med Nordic Tools’ ordre- eller økonomisystem.
+            </p>
+            <button
+              type="button"
+              className="text-button"
+              onClick={() => {
+                resetSalesOrdersDemo();
+                notify('Demoens salgsdata er nulstillet');
+              }}
+            >
+              Nulstil demodata
+            </button>
+          </div>
         </article>
       </div>
     );

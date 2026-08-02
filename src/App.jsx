@@ -16,6 +16,7 @@ import Ledelsesrytme from './views/Ledelsesrytme';
 import Provision from './views/Provision';
 import SaelgerCockpit from './views/SaelgerCockpit';
 import TvTavle from './views/TvTavle';
+import RegistrerSalg from './views/RegistrerSalg';
 
 const LEADER_NAV = [
   { id: 'overview', label: 'Overblik', icon: '⌁' },
@@ -57,6 +58,7 @@ const TITLES = {
   'seller-cockpit': 'Mit cockpit',
   'seller-sales': 'Mine salg',
   'seller-ask': 'Spørg LeadOS',
+  'register-sale': 'Registrér salg',
   tv: 'Live salgstavle',
 };
 
@@ -130,16 +132,28 @@ export default function App() {
     'seller-cockpit': 'seller-cockpit',
     'seller-sales': 'seller-sales',
     'seller-ask': 'seller-ask',
+    'register-sale': 'seller-sales',
     tv: 'tv',
   }[section];
 
   const renderMain = () => {
+    if (section === 'register-sale') {
+      return (
+        <RegistrerSalg
+          notify={notify}
+          onCancel={(next = 'seller-cockpit') => go(next)}
+          onSubmitted={() => {}}
+        />
+      );
+    }
+
     if (SELLER_SECTIONS.has(section) || section === 'knowledge-bank') {
       return (
         <SaelgerCockpit
           notify={notify}
           section={section}
           role={section === 'knowledge-bank' ? 'leader' : 'seller'}
+          onRegisterSale={() => go('register-sale')}
         />
       );
     }
@@ -374,6 +388,11 @@ export default function App() {
                   onClick={() => notify('Ny aktivitet er klar til registrering')}
                 >
                   + Registrér aktivitet
+                </button>
+              )}
+              {isSellerRole && section !== 'register-sale' && (
+                <button type="button" className="primary" onClick={() => go('register-sale')}>
+                  + Registrér salg
                 </button>
               )}
             </div>

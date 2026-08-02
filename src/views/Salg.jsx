@@ -1,7 +1,16 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import CommercialMetric from '../components/CommercialMetric';
 import { commercialSales } from '../data/commercial';
 import { money, nextTierFor } from '../lib/commission';
+import useSalesOrders from '../hooks/useSalesOrders';
+import {
+  PENDING_APPROVAL,
+  approveSalesOrder,
+  markSalesOrderReturned,
+  markSalesOrderSent,
+  returnSalesOrder,
+  statusPillClass,
+} from '../lib/salesOrders';
 
 const metricSets = {
   Nysalg: [
@@ -41,9 +50,39 @@ const insights = {
 
 export default function Salg({ notify, onOpenTv }) {
   const [view, setView] = useState('Samlet');
+  const orders = useSalesOrders();
+  const [activeId, setActiveId] = useState(null);
+  const [leaderNote, setLeaderNote] = useState('');
+  const [approveSpecial, setApproveSpecial] = useState(true);
+  const [approveCommission, setApproveCommission] = useState(true);
+
   const metrics = metricSets[view];
   const insight = insights[view];
   const board = commercialSales;
+
+  const pending = useMemo(
+    () => orders.filter((o) => o.status === PENDING_APPROVAL),
+    [orders],
+  );
+  const warehouseReady = useMemo(
+    () => orders.filter((o) => o.status === 'Klar til lager' || o.status === 'Afventer afsendelse'),
+    [orders],
+  );
+
+  const active = orders.find((o) => o.id === activeId) || null;
+
+  const openOrder = (id) => {
+    const o = orders.find((x) => x.id === id);
+    setActiveId(id);
+    setLeaderNote('');
+    setApproveSpecial(true);
+    setApproveCommission(true);
+    if (o?.flags?.needsMichael) {
+      /* keep defaults */
+    }
+  };
+
+  const companyName = (o) => (typeof o.customer === 'string' ? o.customer : o.customer?.company) || '—';
 
   return (
     <div className="content">
@@ -66,6 +105,197 @@ export default function Salg({ notify, onOpenTv }) {
           Opdatér TV-tavle
         </button>
       </div>
+
+      <article className="card" style={{ marginBottom: 16 }}>
+        <div className="card-head">
+          <div>
+            <span className="kicker">ORDRER TIL GODKENDELSE</span>
+            <h3>{pending.length ? `${pending.length} afventer Michael` : 'Ingen ordrer i kø'}</h3>
+          </div>
+          <span className="muted">Sælgerregistreret · kræver ledergodkendelse før TV og lager</span>
+        </div>
+
+        {pending.length === 0 && (
+          <p className="muted" style={{ fontSize: 12, margin: '8px 0 0' }}>
+            Når en sælger sender en ordre, lander den her.
+          </p>
+        )}
+
+        <div className="approval-list">
+          {pending.map((o) => (
+            <button
+              key={o.id}
+              type="button"
+              className={`approval-row ${activeId === o.id ? 'active' : ''}`}
+              onClick={() => openOrder(o.id)}
+            >
+              <div>
+                <b>{o.id}</b>
+                <p>
+                  {o.seller} · {companyName(o)}
+                  {o.flags?.needsMichael ? ' · kræver stillingtagen' : ''}
+                </p>
+              </div>
+              <div className="approval-row-meta">
+                <strong>{money(o.amount)}</strong>
+                <span>{o.registeredAt}</span>
+                <span className={`pill ${statusPillClass(o.status)}`}>{o.status}</span>
+              </div>
+            </button>
+          ))}
+        </div>
+
+        {active && active.status === PENDING_APPROVAL && (
+          <div className="approval-detail">
+            <span className="kicker">ORDREDETALJE · {active.id}</span>
+            <div className="reg-preview-grid" style={{ marginTop: 10 }}>
+              <div>
+                <b>{companyName(active)}</b>
+                <p>
+                  {active.seller} · {money(active.amount)}
+                </p>
+                {active.customer?.cvr && <p>CVR {active.customer.cvr}</p>}
+                {active.customer?.email && (
+                  <p>
+                    {active.customer.contact} · {active.customer.email}
+                  </p>
+                )}
+              </div>
+              <div>
+                {active.special && (
+                  <p>
+                    <b>Afvigelse:</b> {active.special}
+                  </p>
+                )}
+                {active.delivery?.specialAgreement && <p>{active.delivery.specialAgreement}</p>}
+                {active.lines?.length > 0 && !active.legacy && (
+                  <ul className="approval-lines">
+                    {active.lines.map((l) => (
+                      <li key={l.id}>
+                        {l.product} · {l.qty} × {money(Number(l.unitPrice) || 0)}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+
+            {(active.flags?.specialPrice || active.flags?.customCommission) && (
+              <div className="approval-toggles">
+                {active.flags.specialPrice && (
+                  <label className="reg-check">
+                    <input
+                      type="checkbox"
+                      checked={approveSpecial}
+                      onChange={(e) => setApproveSpecial(e.target.checked)}
+                    />
+                    Godkend specialpris / særlig aftale
+                  </label>
+                )}
+                {active.flags.customCommission && (
+                  <label className="reg-check">
+                    <input
+                      type="checkbox"
+                      checked={approveCommission}
+                      onChange={(e) => setApproveCommission(e.target.checked)}
+                    />
+                    Godkend afvigende provisionssats
+                  </label>
+                )}
+              </div>
+            )}
+
+            <label style={{ display: 'grid', gap: 6, marginTop: 12 }}>
+              Kort besked til sælgeren
+              <textarea
+                value={leaderNote}
+                onChange={(e) => setLeaderNote(e.target.value)}
+                rows={2}
+                placeholder="Valgfrit — synlig for sælgeren ved tilbagesendelse"
+              />
+            </label>
+
+            <div className="rule-actions" style={{ marginTop: 14 }}>
+              <button
+                type="button"
+                className="primary"
+                onClick={() => {
+                  approveSalesOrder(active.id, {
+                    message: leaderNote,
+                    approveSpecial,
+                    approveCommission,
+                  });
+                  notify(`${active.id} godkendt — klar til lager`);
+                  setActiveId(null);
+                }}
+              >
+                Godkend ordre
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => {
+                  if (!leaderNote.trim()) {
+                    notify('Skriv en kort besked, når du sender tilbage');
+                    return;
+                  }
+                  returnSalesOrder(active.id, leaderNote.trim());
+                  notify(`${active.id} sendt tilbage til rettelse`);
+                  setActiveId(null);
+                }}
+              >
+                Send tilbage til rettelse
+              </button>
+            </div>
+          </div>
+        )}
+      </article>
+
+      {warehouseReady.length > 0 && (
+        <article className="card" style={{ marginBottom: 16 }}>
+          <div className="card-head">
+            <div>
+              <span className="kicker">KLAR TIL LAGER · DEMO</span>
+              <h3>Markér afsendelse</h3>
+            </div>
+            <span className="muted">Senere automatisk fra lager/økonomi</span>
+          </div>
+          {warehouseReady.map((o) => (
+            <div className="list-row" key={o.id} style={{ alignItems: 'center' }}>
+              <div>
+                <b>
+                  {o.id} · {companyName(o)}
+                </b>
+                <p>
+                  {o.seller} · {money(o.amount)} · {o.status}
+                </p>
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  type="button"
+                  className="primary"
+                  onClick={() => {
+                    markSalesOrderSent(o.id);
+                    notify(`${o.id} markeret som sendt — tæller i provision`);
+                  }}
+                >
+                  Afsendt
+                </button>
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => {
+                    markSalesOrderReturned(o.id);
+                    notify(`${o.id} returneret — provision tilbageføres`);
+                  }}
+                >
+                  Returnér
+                </button>
+              </div>
+            </div>
+          ))}
+        </article>
+      )}
 
       <div className="metric-grid">
         {metrics.map((m) => (
