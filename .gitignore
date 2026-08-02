@@ -12,6 +12,24 @@ dist
 dist-ssr
 *.local
 
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Temporary / reference artifacts (not for deploy)
+*.zip
+lead-os-source-v3.zip
+/tmp/
+leados-v3-ref/
+
+# Scratch logo dumps (keep public/logo.png tracked)
+/logo.png
+public/2.png
+public/LeadOS.png
+public/LeadOS (1).png
+public/LeadOS (6).png
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
