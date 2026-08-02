@@ -272,7 +272,7 @@ export default function App() {
             className="brand-logo"
           />
           <div className="brand-copy">
-            <p className="brand-tagline">Styrker ledere. Løfter sælgere.</p>
+            <p className="brand-tagline">Commercial Operating System</p>
             <p className="brand-byline">by Nitzsch &amp; Co.</p>
           </div>
         </div>
